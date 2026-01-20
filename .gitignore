@@ -1,0 +1,21 @@
+# --- Build Artifacts ---
+build/
+bin/
+lib/
+*.o
+*.a
+*.so
+*.exe
+
+# --- Neovim / Vim ---
+# Swap files, backup files, and undo history
+*.swp
+*.swo
+*~
+.netrwhist
+undo/
+.nvimlog
+
+# --- OS Specific ---
+.DS_Store
+Thumbs.db
