@@ -1,9 +1,9 @@
 #include <metalyzer/lexer/DFA.hpp>
+#include <metalyzer/lexer/Minimizer.hpp>
 #include <metalyzer/lexer/NFA.hpp>
 #include <metalyzer/lexer/PowerSetConstructor.hpp>
 #include <metalyzer/lexer/ThompsonConstructor.hpp>
 /*
-#include <metalyzer/lexer/Minimizer.hpp>
 #include <metalyzer/lexer/Compressor.hpp>
 #include <metalyzer/lexer/TransTable.hpp>
 */
@@ -54,8 +54,8 @@ int main() {
   }
 
   metalyzer::DFAContext dfa_ctx;
-  metalyzer::PowerSetConstructor psconst(dfa_ctx);
 
+  metalyzer::PowerSetConstructor psconst(dfa_ctx);
   metalyzer::DFA dfa = psconst.convert(resultNFA);
 
   if (dfa.start != nullptr) {
@@ -64,12 +64,17 @@ int main() {
     std::cerr << "Failed to convert NFA to DFA." << std::endl;
     return 1;
   }
-  /*
 
   metalyzer::Minimizer minimizer;
-  metalyzer::Compressor compressor;
+  metalyzer::DFA mdfa = minimizer.minimize(dfa, dfa_ctx);
 
-  metalyzer::DFA mdfa = minimizer.minimize(dfa);
+  std::cout << "\n=== Minimized DFA ===\n";
+  if (mdfa.start != nullptr) {
+    printDFAInfo(pattern, mdfa);
+  }
+  /*
+
+  metalyzer::Compressor compressor;
   metalyzer::TransTable cdfa = compressor.compress(dfa);
   */
 
