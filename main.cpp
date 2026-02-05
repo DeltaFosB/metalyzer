@@ -92,7 +92,7 @@ int main() {
   metalyzer::NFAContext nfa_ctx;
   metalyzer::ThompsonConstructor compiler(nfa_ctx);
 
-  std::string pattern = "(a|b)*c";
+  std::string pattern = "[a-z]+[0-9]_";
   metalyzer::NFA resultNFA = compiler.build(pattern);
 
   if (resultNFA.start != nullptr) {

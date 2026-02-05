@@ -22,5 +22,7 @@ private:
   std::string shunt_yard(const std::string &regex);
 
   int getPrecedence(char op);
+
+  bool isLiteral(char c);
 };
 } // namespace metalyzer

@@ -126,17 +126,49 @@ NFA ThompsonConstructor::createOptional(NFA base) {
 
   return opt_nfa;
 }
+
+bool ThompsonConstructor::isLiteral(char c) {
+  return c != '(' && c != ')' && c != '*' && c != '+' && c != '?' && c != '|' &&
+         c != '.';
+}
+
 std::string ThompsonConstructor::preprocess(const std::string &regex) {
   std::string res;
   for (int i = 0; i < static_cast<int>(regex.size()); i++) {
     char a = regex[i];
-    res += a;
+    if (a == '[') {
+      std::string unionGroup = "(";
+      i++;
+      while (i < static_cast<int>(regex.size()) && regex[i] != ']') {
+        if (i + 2 < static_cast<int>(regex.size()) && regex[i + 1] == '-') {
+          char start = regex[i];
+          char end = regex[i + 2];
+          for (char c = start; c <= end; c++) {
+            unionGroup += c;
+            if (c != end)
+              unionGroup += '|';
+          }
+          i += 3;
+        } else {
+          unionGroup += regex[i];
+          i++;
+        }
+        if (i < static_cast<int>(regex.size()) && regex[i] != ']') {
+          unionGroup += '|';
+        }
+      }
+      unionGroup += ")";
+      res += unionGroup;
+
+      a = ')';
+    } else
+      res += a;
     bool aIsFinisher =
-        (isalnum(a) || a == '*' || a == '+' || a == '?' || a == ')');
+        (isLiteral(a) || a == '*' || a == '+' || a == '?' || a == ')');
     if (i + 1 < static_cast<int>(regex.size())) {
       char b = regex[i + 1];
 
-      bool bIsStarter = (isalnum(b) || b == '(');
+      bool bIsStarter = (isLiteral(b) || b == '(' || b == '[');
 
       if (aIsFinisher && bIsStarter) {
         res += '.';
@@ -150,7 +182,7 @@ std::string ThompsonConstructor::shunt_yard(const std::string &regex) {
   std::string postfix;
   std::stack<char> st;
   for (char ch : regex) {
-    if (isalnum(ch))
+    if (isLiteral(ch))
       postfix += ch;
     else if (ch == '(')
       st.push(ch);
@@ -191,7 +223,7 @@ NFA ThompsonConstructor::build(const std::string &regexPattern) {
   std::string regex = shunt_yard(preprocess(regexPattern));
   std::stack<NFA> eval;
   for (char ch : regex) {
-    if (isalnum(ch))
+    if (isLiteral(ch))
       eval.push(createBasic(ch));
     // Handle *
     else if (ch == '*') {
