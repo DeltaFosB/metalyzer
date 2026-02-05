@@ -85,12 +85,54 @@ NFA ThompsonConstructor::createStar(NFA base) {
   return star_nfa;
 };
 
+NFA ThompsonConstructor::createPlus(NFA base) {
+  NFAState *q0 = ctx.createState();
+  NFAState *qf = ctx.createState();
+
+  q0->transitions['\0'].push_back(base.start);
+
+  base.end->transitions['\0'].push_back(base.start);
+  base.end->transitions['\0'].push_back(qf);
+
+  NFA plus_nfa;
+  plus_nfa.start = q0;
+  plus_nfa.end = qf;
+
+  plus_nfa.allStates.push_back(q0);
+  plus_nfa.allStates.insert(plus_nfa.allStates.end(), base.allStates.begin(),
+                            base.allStates.end());
+  plus_nfa.allStates.push_back(qf);
+
+  return plus_nfa;
+};
+
+NFA ThompsonConstructor::createOptional(NFA base) {
+  NFAState *q0 = ctx.createState();
+  NFAState *qf = ctx.createState();
+
+  q0->transitions['\0'].push_back(base.start);
+  q0->transitions['\0'].push_back(qf);
+
+  base.end->transitions['\0'].push_back(qf);
+
+  NFA opt_nfa;
+  opt_nfa.start = q0;
+  opt_nfa.end = qf;
+
+  opt_nfa.allStates.push_back(q0);
+  opt_nfa.allStates.insert(opt_nfa.allStates.end(), base.allStates.begin(),
+                           base.allStates.end());
+  opt_nfa.allStates.push_back(qf);
+
+  return opt_nfa;
+}
 std::string ThompsonConstructor::preprocess(const std::string &regex) {
   std::string res;
   for (int i = 0; i < static_cast<int>(regex.size()); i++) {
     char a = regex[i];
     res += a;
-    bool aIsFinisher = (isalnum(a) || a == '*' || a == ')');
+    bool aIsFinisher =
+        (isalnum(a) || a == '*' || a == '+' || a == '?' || a == ')');
     if (i + 1 < static_cast<int>(regex.size())) {
       char b = regex[i + 1];
 
@@ -135,7 +177,7 @@ std::string ThompsonConstructor::shunt_yard(const std::string &regex) {
 }
 
 int ThompsonConstructor::getPrecedence(char op) {
-  if (op == '*')
+  if (op == '*' || op == '+' || op == '?')
     return 3;
   else if (op == '.')
     return 2;
@@ -151,13 +193,32 @@ NFA ThompsonConstructor::build(const std::string &regexPattern) {
   for (char ch : regex) {
     if (isalnum(ch))
       eval.push(createBasic(ch));
+    // Handle *
     else if (ch == '*') {
       if (eval.empty())
         continue;
       NFA base = eval.top();
       eval.pop();
       eval.push(createStar(base));
-    } else if (ch == '|' || ch == '.') {
+    }
+    // Handle +
+    else if (ch == '+') {
+      if (eval.empty())
+        continue;
+      NFA base = eval.top();
+      eval.pop();
+      eval.push(createPlus(base));
+    }
+    // Handle ?
+    else if (ch == '?') {
+      if (eval.empty())
+        continue;
+      NFA base = eval.top();
+      eval.pop();
+      eval.push(createOptional(base));
+    }
+    // Handle | and .
+    else if (ch == '|' || ch == '.') {
       if (eval.size() < 2)
         continue;
 

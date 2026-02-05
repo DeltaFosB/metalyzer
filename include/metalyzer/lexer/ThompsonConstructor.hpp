@@ -15,6 +15,9 @@ private:
   NFA createConcat(NFA left, NFA right);
   NFA createStar(NFA base);
 
+  NFA createPlus(NFA base);
+  NFA createOptional(NFA base);
+
   std::string preprocess(const std::string &regex);
   std::string shunt_yard(const std::string &regex);
 
