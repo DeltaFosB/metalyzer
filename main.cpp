@@ -1,3 +1,4 @@
+#include <metalyzer/generator/Generator.hpp>
 #include <metalyzer/lexer/Compressor.hpp>
 #include <metalyzer/lexer/DFA.hpp>
 #include <metalyzer/lexer/Minimizer.hpp>
@@ -127,6 +128,18 @@ int main() {
   metalyzer::TransTable cdfa = compressor.compress(mdfa);
 
   printTransTable(cdfa);
+
+  std::cout << "\n=== Generating C++ Lexer Code ===\n";
+
+  metalyzer::generator::Generator::Config config;
+  config.outputDir = "generated_lexer";
+  config.className = "MyLexer";
+  config.namespaceName = "lexer_code";
+
+  metalyzer::generator::Generator gen(config);
+  gen.generate(cdfa);
+
+  std::cout << "Done! Files should be in '" << config.outputDir << "/'\n";
 
   return 0;
 }
