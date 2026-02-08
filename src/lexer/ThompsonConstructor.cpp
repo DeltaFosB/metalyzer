@@ -5,6 +5,7 @@
 #include <string>
 
 namespace metalyzer {
+namespace lexer {
 
 NFA ThompsonConstructor::createBasic(char symbol) {
   NFAState *q0 = ctx.createState();
@@ -219,7 +220,8 @@ int ThompsonConstructor::getPrecedence(char op) {
     return 0;
 }
 
-NFA ThompsonConstructor::build(const std::string &regexPattern) {
+NFA ThompsonConstructor::build(const std::string &regexPattern,
+                               const int ruleId) {
   std::string regex = shunt_yard(preprocess(regexPattern));
   std::stack<NFA> eval;
   for (char ch : regex) {
@@ -273,10 +275,11 @@ NFA ThompsonConstructor::build(const std::string &regexPattern) {
   NFA finalNFA = eval.top();
 
   if (finalNFA.end != nullptr) {
-    finalNFA.end->isAccepting = true;
+    finalNFA.end->acceptRuleId = ruleId;
   }
 
   return finalNFA;
 };
 
+} // namespace lexer
 } // namespace metalyzer

@@ -6,6 +6,7 @@
 #include <vector>
 
 namespace metalyzer {
+namespace lexer {
 
 class PowerSetConstructor {
 public:
@@ -22,4 +23,5 @@ private:
   std::set<char> getAlphabet(const NFA &nfa);
 };
 
+} // namespace lexer
 } // namespace metalyzer

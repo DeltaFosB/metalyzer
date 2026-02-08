@@ -3,10 +3,11 @@
 #include <metalyzer/lexer/NFA.hpp>
 
 namespace metalyzer {
+namespace lexer {
 class ThompsonConstructor {
 public:
   explicit ThompsonConstructor(NFAContext &context) : ctx(context) {};
-  NFA build(const std::string &regexPattern);
+  NFA build(const std::string &regexPattern, const int ruleId = 0);
 
 private:
   NFAContext &ctx;
@@ -25,4 +26,5 @@ private:
 
   bool isLiteral(char c);
 };
+} // namespace lexer
 } // namespace metalyzer

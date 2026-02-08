@@ -22,7 +22,8 @@ static void replaceAll(std::string &str, const std::string &from,
 
 Generator::Generator(const Config &config) : config(config) {}
 
-std::string Generator::serializeTable(const TransTable &table) const {
+std::string
+Generator::serializeTable(const metalyzer::lexer::TransTable &table) const {
   std::stringstream ss;
   ss << "{\n";
   for (size_t i = 0; i < table.table.size(); ++i) {
@@ -41,12 +42,13 @@ std::string Generator::serializeTable(const TransTable &table) const {
   return ss.str();
 }
 
-std::string Generator::serializeAcceptance(const TransTable &table) const {
+std::string Generator::serializeAcceptance(
+    const metalyzer::lexer::TransTable &table) const {
   std::stringstream ss;
   ss << "{";
-  for (size_t i = 0; i < table.isAccepting.size(); ++i) {
-    ss << (table.isAccepting[i] ? "true" : "false");
-    if (i < table.isAccepting.size() - 1) {
+  for (size_t i = 0; i < table.acceptRuleIds.size(); ++i) {
+    ss << table.acceptRuleIds[i];
+    if (i < table.acceptRuleIds.size() - 1) {
       ss << ", ";
     }
   }
@@ -72,12 +74,13 @@ void Generator::writeToFile(const std::string &filename,
   }
 }
 
-void Generator::generate(const TransTable &table) {
+void Generator::generate(const metalyzer::lexer::TransTable &table) {
   std::string rowsStr = std::to_string(table.table.size());
   std::string tableData = serializeTable(table);
   std::string acceptData = serializeAcceptance(table);
   std::string startState = std::to_string(table.startStateId);
 
+  // --- HEADER TEMPLATE ---
   std::string header = R"(
 #pragma once
 #include <string>
@@ -89,23 +92,26 @@ class @CLASS_NAME@ {
 public:
     explicit @CLASS_NAME@(std::istream& input);
     
-    std::string nextToken();
+    // Returns -1 on EOF, -2 on Error.
+    int nextToken(std::string& outLexeme);
+    
     bool hasMore() const;
 
 private:
     std::istream& input;
     
-    // Hardcoded Transition Table
     static const int TABLE_ROWS = @TABLE_ROWS@;
     static const int TRANS_TABLE[TABLE_ROWS][128];
-    static const bool IS_ACCEPTING[TABLE_ROWS];
+    
+    static const int ACCEPT_RULES[TABLE_ROWS];
+    
     static const int START_STATE = @START_STATE@;
 };
 
 } // namespace @NAMESPACE@
 )";
 
-  // --- SOURCE TEMPLATE ---
+  // --- SOURCE TEMPLATE (Maximal Munch) ---
   std::string source = R"(
 #include "@CLASS_NAME@.hpp"
 #include <cctype>
@@ -115,7 +121,7 @@ namespace @NAMESPACE@ {
 // --- STATIC DATA ---
 const int @CLASS_NAME@::TRANS_TABLE[@TABLE_ROWS@][128] = @TABLE_DATA@;
 
-const bool @CLASS_NAME@::IS_ACCEPTING[@TABLE_ROWS@] = @ACCEPT_DATA@;
+const int @CLASS_NAME@::ACCEPT_RULES[@TABLE_ROWS@] = @ACCEPT_DATA@;
 
 // --- IMPLEMENTATION ---
 @CLASS_NAME@::@CLASS_NAME@(std::istream& in) : input(in) {}
@@ -124,22 +130,24 @@ bool @CLASS_NAME@::hasMore() const {
     return input.good() && input.peek() != EOF;
 }
 
-std::string @CLASS_NAME@::nextToken() {
-    std::string lexeme;
-    int currentState = START_STATE;
+int @CLASS_NAME@::nextToken(std::string& outLexeme) {
+    outLexeme.clear();
     
-    // 1. Initial Check
-    if (!hasMore()) return "";
-
-    // 2. Skip Whitespace
+    // 1. Skip Whitespace
     while (hasMore() && std::isspace(input.peek())) {
         input.get(); 
     }
 
-    // 3. Post-Whitespace Check (Prevent returning empty if file ends in space)
-    if (!hasMore()) return "";
+    if (!hasMore()) return -1; // EOF
 
-    // 4. Driver Loop
+    int currentState = START_STATE;
+    std::string buffer;
+    
+    // Tracking for Maximal Munch (Longest Match)
+    int lastGoodRule = -1;
+    size_t lastGoodLength = 0;
+
+    // 2. Driver Loop (Greedy Consumption)
     while (hasMore()) {
         char c = input.peek();
         
@@ -149,25 +157,43 @@ std::string @CLASS_NAME@::nextToken() {
         int nextState = TRANS_TABLE[currentState][(int)c];
 
         if (nextState == -1) {
-            // No transition possible. Stop here.
+            // No transition possible. Stop reading.
             break;
         }
 
         // Consume and Advance
-        lexeme += c;
+        buffer += c;
         input.get();
         currentState = nextState;
+        
+        // Is this new state accepting?
+        if (ACCEPT_RULES[currentState] != -1) {
+            lastGoodRule = ACCEPT_RULES[currentState];
+            lastGoodLength = buffer.length();
+        }
     }
 
-    // 5. Final Decision
-    if (IS_ACCEPTING[currentState]) {
-        return lexeme;
-    } else {
-        // Error or partial match failure
-        if (!lexeme.empty()) {
-            std::cerr << "Lexical Error: Unexpected input '" << lexeme << "'" << std::endl;
+    // 3. Final Decision
+    if (lastGoodRule != -1) {
+        // We found a match!
+        outLexeme = buffer.substr(0, lastGoodLength);
+        
+        // ROLLBACK: Put back any characters we read that weren't part of the match
+        // e.g. Input "intx", matched "int", read "intx". Put back 'x'.
+        for (size_t i = buffer.length(); i > lastGoodLength; --i) {
+            input.putback(buffer[i-1]);
         }
-        return ""; 
+        
+        return lastGoodRule;
+    } else {
+        // Error: We read some characters but never hit an accepting state
+        if (!buffer.empty()) {
+            // Treat as an error token? Or just return the garbage?
+            // For now, let's return a special error code -2
+            outLexeme = buffer;
+            return -2; 
+        }
+        return -1; 
     }
 }
 

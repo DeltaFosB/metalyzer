@@ -4,6 +4,7 @@
 #include <unordered_map>
 
 namespace metalyzer {
+namespace lexer {
 
 const int ALPHABET_SIZE = 128;
 
@@ -22,7 +23,7 @@ TransTable Compressor::compress(const DFA &dfa) {
   for (DFAState *s : dfa.allStates) {
     stateIdToIndex[s->id] = nextIndex++;
 
-    result.isAccepting.push_back(s->isAccepting);
+    result.acceptRuleIds.push_back(s->acceptRuleId);
   }
 
   int numStates = dfa.allStates.size();
@@ -49,4 +50,5 @@ TransTable Compressor::compress(const DFA &dfa) {
 
   return result;
 }
+} // namespace lexer
 } // namespace metalyzer

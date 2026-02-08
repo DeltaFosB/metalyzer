@@ -17,14 +17,15 @@ public:
 
   explicit Generator(const Config &config);
 
-  void generate(const TransTable &table);
+  void generate(const metalyzer::lexer::TransTable &table);
 
 private:
   Config config;
 
-  std::string serializeTable(const TransTable &table) const;
+  std::string serializeTable(const metalyzer::lexer::TransTable &table) const;
 
-  std::string serializeAcceptance(const TransTable &table) const;
+  std::string
+  serializeAcceptance(const metalyzer::lexer::TransTable &table) const;
 
   void writeToFile(const std::string &filename,
                    const std::string &content) const;

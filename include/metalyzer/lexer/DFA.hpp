@@ -6,13 +6,12 @@
 #include <vector>
 
 namespace metalyzer {
+namespace lexer {
 
 struct DFAState {
   int id;
   std::unordered_map<char, DFAState *> transitions;
-  bool isAccepting = false;
-  std::string tokenName = "";
-
+  int acceptRuleId = -1;
   DFAState(int id) : id(id) {}
 };
 
@@ -34,4 +33,5 @@ struct DFA {
   std::vector<DFAState *> allStates;
 };
 
+} // namespace lexer
 } // namespace metalyzer

@@ -6,6 +6,7 @@
 #include <stack>
 
 namespace metalyzer {
+namespace lexer {
 
 std::set<NFAState *>
 PowerSetConstructor::computeEpsilonClosure(NFAState *state) {
@@ -68,15 +69,19 @@ DFA PowerSetConstructor::convert(const NFA &nfa) {
   std::set<NFAState *> startSet = computeEpsilonClosure(nfa.start);
   DFAState *d0 = ctx.createState();
 
+  int startBestRule = -1;
+  for (NFAState *nfaS : startSet) {
+    if (nfaS->acceptRuleId >= 0) {
+      if (startBestRule == -1 || nfaS->acceptRuleId < startBestRule) {
+        startBestRule = nfaS->acceptRuleId;
+      }
+    }
+  }
+  d0->acceptRuleId = startBestRule;
+
   seenSets[startSet] = d0;
   worklist.push(startSet);
   dfa.start = d0;
-  for (NFAState *nfaS : startSet) {
-    if (nfaS->isAccepting) {
-      d0->isAccepting = true;
-      break;
-    }
-  }
   dfa.allStates.push_back(d0);
 
   std::set<char> alphabet = getAlphabet(nfa);
@@ -102,12 +107,16 @@ DFA PowerSetConstructor::convert(const NFA &nfa) {
       if (seenSets.find(U) == seenSets.end()) {
         DFAState *newState = ctx.createState();
 
+        int bestRule = -1;
         for (NFAState *nfaS : U) {
-          if (nfaS->isAccepting) {
-            newState->isAccepting = true;
-            break;
+          if (nfaS->acceptRuleId >= 0) {
+            // Pick the lowest ID (Highest Priority)
+            if (bestRule == -1 || nfaS->acceptRuleId < bestRule) {
+              bestRule = nfaS->acceptRuleId;
+            }
           }
         }
+        newState->acceptRuleId = bestRule;
 
         seenSets[U] = newState;
         worklist.push(U);
@@ -121,4 +130,5 @@ DFA PowerSetConstructor::convert(const NFA &nfa) {
   return dfa;
 }
 
+} // namespace lexer
 } // namespace metalyzer

@@ -4,6 +4,7 @@
 #include <unordered_map>
 
 namespace metalyzer {
+namespace lexer {
 
 DFA Minimizer::minimize(const DFA &dfa, DFAContext &ctx) {
   std::set<char> alphabet = getAlphabet(dfa);
@@ -34,24 +35,15 @@ std::set<char> Minimizer::getAlphabet(const DFA &dfa) {
 }
 
 std::vector<std::vector<DFAState *>> Minimizer::initPartitions(const DFA &dfa) {
-  std::vector<DFAState *> accepting;
-  std::vector<DFAState *> nonAccepting;
+  std::map<int, std::vector<DFAState *>> ruleGroups;
 
   for (DFAState *state : dfa.allStates) {
-    if (state->isAccepting) {
-      accepting.push_back(state);
-    } else {
-      nonAccepting.push_back(state);
-    }
+    ruleGroups[state->acceptRuleId].push_back(state);
   }
 
   std::vector<std::vector<DFAState *>> partitions;
-
-  if (!accepting.empty()) {
-    partitions.push_back(accepting);
-  }
-  if (!nonAccepting.empty()) {
-    partitions.push_back(nonAccepting);
+  for (auto const &[id, group] : ruleGroups) {
+    partitions.push_back(group);
   }
 
   return partitions;
@@ -124,15 +116,14 @@ DFA Minimizer::makeDFA(const DFA &originalDFA,
   std::unordered_map<int, DFAState *> oldToNew;
   std::vector<DFAState *> newStates;
 
-  for (auto partition : partitions) {
+  for (const auto &partition : partitions) {
     DFAState *newState = ctx.createState();
+
+    DFAState *representative = partition[0];
+    newState->acceptRuleId = representative->acceptRuleId;
 
     for (DFAState *oldState : partition) {
       oldToNew[oldState->id] = newState;
-
-      if (oldState->isAccepting) {
-        newState->isAccepting = true;
-      }
 
       if (oldState == originalDFA.start) {
         dfa.start = newState;
@@ -155,4 +146,5 @@ DFA Minimizer::makeDFA(const DFA &originalDFA,
   return dfa;
 }
 
+} // namespace lexer
 } // namespace metalyzer

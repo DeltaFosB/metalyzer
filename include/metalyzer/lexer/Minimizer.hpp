@@ -6,6 +6,7 @@
 #include <vector>
 
 namespace metalyzer {
+namespace lexer {
 
 class Minimizer {
 public:
@@ -30,4 +31,5 @@ private:
   std::set<char> getAlphabet(const DFA &dfa);
 };
 
+} // namespace lexer
 } // namespace metalyzer
