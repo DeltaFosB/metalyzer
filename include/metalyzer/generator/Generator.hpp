@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <metalyzer/frontend/LexerSpec.hpp>
 #include <metalyzer/lexer/TransTable.hpp>
 #include <string>
 
@@ -17,7 +18,8 @@ public:
 
   explicit Generator(const Config &config);
 
-  void generate(const metalyzer::lexer::TransTable &table);
+  void generate(const metalyzer::lexer::TransTable &table,
+                const metalyzer::frontend::LexerSpec &spec);
 
 private:
   Config config;

@@ -70,21 +70,91 @@ int main() {
   std::string mockFileContent = R"(
 %{
 #include <iostream>
-// This is the Header Section
+#include <string>
+#include <sstream>
+
+// Simulating a real token system for a micro-language
+enum class TokenType {
+    TOKEN_EOF = -1,
+    TOKEN_ERROR = -2,
+    TOK_INT = 1,
+    TOK_FLOAT = 2,
+    TOK_IF = 3,
+    TOK_ELSE = 4,
+    TOK_WHILE = 5,
+    TOK_ID = 6,
+    TOK_ASSIGN = 7,
+    TOK_EQUAL = 8
+};
 %}
 
 %%
 
-[0-9]+    { return 1; }
-if        { return 2; }
-while     { return 3; }
-[a-z]+    { return 4; }
+[0-9]+          { return (int)TokenType::TOK_INT; }
+[0-9]+\.[0-9]+  { return (int)TokenType::TOK_FLOAT; }
+if              { return (int)TokenType::TOK_IF; }
+else            { return (int)TokenType::TOK_ELSE; }
+while           { return (int)TokenType::TOK_WHILE; }
+==              { return (int)TokenType::TOK_EQUAL; }
+=               { return (int)TokenType::TOK_ASSIGN; }
+[a-z]+          { return (int)TokenType::TOK_ID; }
 
 %%
 
-// This is the User Code Section
+// --- EMBEDDED TEST DRIVER SUITE ---
+
+std::string get_token_name(int token_id) {
+    switch (static_cast<TokenType>(token_id)) {
+        case TokenType::TOKEN_EOF:   return "EOF";
+        case TokenType::TOKEN_ERROR: return "ERROR";
+        case TokenType::TOK_INT:     return "TOK_INT";
+        case TokenType::TOK_FLOAT:   return "TOK_FLOAT";
+        case TokenType::TOK_IF:      return "TOK_IF";
+        case TokenType::TOK_ELSE:    return "TOK_ELSE";
+        case TokenType::TOK_WHILE:   return "TOK_WHILE";
+        case TokenType::TOK_ID:      return "TOK_ID";
+        case TokenType::TOK_ASSIGN:  return "TOK_ASSIGN";
+        case TokenType::TOK_EQUAL:   return "TOK_EQUAL";
+        default:                     return "UNKNOWN";
+    }
+}
+
 int main() {
-    std::cout << "Hello from generated code!" << std::endl;
+    // Explicitly pull your custom generated namespace configuration into scope
+    using namespace user_code;
+
+    std::cout << "========================================" << std::endl;
+    std::cout << "   RUNNING GENERATED RUNTIME TESTING    " << std::endl;
+    std::cout << "========================================" << std::endl;
+
+    std::string testInput = "if x == 42.12 else while x = 7";
+    std::stringstream testStream(testInput);
+
+    std::cout << "Input Stream: \"" << testInput << "\"\n\n";
+
+    // Now correctly resolves to generated::Lexer based on your default Config properties
+    MyLexer lexer(testStream);
+
+    std::string lexeme;
+    int token;
+
+    while (lexer.hasMore()) {
+        token = lexer.nextToken(lexeme);
+        
+        std::cout << "Matched -> [" << get_token_name(token) 
+                  << "] with value: \"" << lexeme << "\"" << std::endl;
+
+        if (token == (int)TokenType::TOKEN_ERROR) {
+            std::cerr << "Stopping scan due to lexical error!" << std::endl;
+            return 1;
+        }
+        if (token == (int)TokenType::TOKEN_EOF) {
+            break;
+        }
+    }
+
+    std::cout << "\nScanning complete! Pipeline verified successfully." << std::endl;
+    return 0;
 }
 )";
 
@@ -129,7 +199,7 @@ int main() {
 
   metalyzer::generator::Generator gen(config);
 
-  gen.generate(table);
+  gen.generate(table, spec);
 
   std::cout << "Done! Output in 'generated_lexer/'\n";
 

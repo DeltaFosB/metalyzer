@@ -74,17 +74,31 @@ void Generator::writeToFile(const std::string &filename,
   }
 }
 
-void Generator::generate(const metalyzer::lexer::TransTable &table) {
+void Generator::generate(const metalyzer::lexer::TransTable &table,
+                         const metalyzer::frontend::LexerSpec &spec) {
   std::string rowsStr = std::to_string(table.table.size());
   std::string tableData = serializeTable(table);
   std::string acceptData = serializeAcceptance(table);
   std::string startState = std::to_string(table.startStateId);
+
+  std::stringstream ss;
+
+  ss << "switch(lastGoodRule) {\n";
+
+  for (const auto &rule : spec.rules) {
+    int case_idx = rule.priority;
+    std::string case_code = rule.actionCode;
+
+    ss << "           case " << case_idx << ": " << case_code << " break;\n";
+  }
+  ss << "         }";
 
   // --- HEADER TEMPLATE ---
   std::string header = R"(
 #pragma once
 #include <string>
 #include <iostream>
+@HEADER_CODE@
 
 namespace @NAMESPACE@ {
 
@@ -184,6 +198,8 @@ int @CLASS_NAME@::nextToken(std::string& outLexeme) {
             input.putback(buffer[i-1]);
         }
         
+        @ACTION_SWITCH@
+
         return lastGoodRule;
     } else {
         // Error: We read some characters but never hit an accepting state
@@ -198,6 +214,8 @@ int @CLASS_NAME@::nextToken(std::string& outLexeme) {
 }
 
 } // namespace @NAMESPACE@
+
+@USER_CODE@
 )";
 
   auto processTemplate = [&](std::string text) -> std::string {
@@ -207,6 +225,9 @@ int @CLASS_NAME@::nextToken(std::string& outLexeme) {
     replaceAll(text, "@TABLE_DATA@", tableData);
     replaceAll(text, "@ACCEPT_DATA@", acceptData);
     replaceAll(text, "@START_STATE@", startState);
+    replaceAll(text, "@ACTION_SWITCH@", ss.str());
+    replaceAll(text, "@HEADER_CODE@", spec.headerCode);
+    replaceAll(text, "@USER_CODE@", spec.userCode);
     return text;
   };
 
