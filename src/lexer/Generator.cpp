@@ -111,9 +111,14 @@ public:
     
     bool hasMore() const;
 
+    const int getLine() { return currentLine; }
+    const int getCol() { return currentCol; }
+
 private:
     std::istream& input;
     
+    int currentLine = 1, currentCol = 1;
+
     static const int TABLE_ROWS = @TABLE_ROWS@;
     static const int TRANS_TABLE[TABLE_ROWS][128];
     
@@ -149,6 +154,8 @@ int @CLASS_NAME@::nextToken(std::string& outLexeme) {
     
     // 1. Skip Whitespace
     while (hasMore() && std::isspace(input.peek())) {
+        if(input.peek() == '\n') { currentCol = 1; currentLine++; }
+        else currentCol++;
         input.get(); 
     }
 
@@ -197,6 +204,11 @@ int @CLASS_NAME@::nextToken(std::string& outLexeme) {
         for (size_t i = buffer.length(); i > lastGoodLength; --i) {
             input.putback(buffer[i-1]);
         }
+
+        for(const char &ch : outLexeme){
+            if(ch == '\n'){ currentCol = 1; currentLine++; }
+            else currentCol++;
+        }
         
         @ACTION_SWITCH@
 
@@ -207,6 +219,10 @@ int @CLASS_NAME@::nextToken(std::string& outLexeme) {
             // Treat as an error token? Or just return the garbage?
             // For now, let's return a special error code -2
             outLexeme = buffer;
+            for(const char &ch : outLexeme){
+                if(ch == '\n'){ currentCol = 1; currentLine++; }
+                else currentCol++;
+            }
             return -2; 
         }
         return -1; 
