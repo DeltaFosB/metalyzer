@@ -15,6 +15,7 @@ To achieve maximum performance and predictability, Metalyzer handles all regex c
 | **State Optimization** | Equivalence-Class Partitioning | Strictly isolates partitions by Rule ID, minimizing footprint without destroying logic. |
 | **Runtime Matching** | Maximal Munch Algorithm | O(1) transitions per character with greedy stream rollback. |
 | **Memory Footprint** | 2D Transition Matrix Compression | Cache-friendly array layout; eliminates pointer-chasing during runtime tokenization. |
+| **Action Injection** | Dynamic Template Code Emitter | Directly binds custom user action blocks into an optimized runtime execution switch. |
 
 ## Pipeline Architecture
 
@@ -47,12 +48,13 @@ Metalyzer converts human-readable regex into executable state machines using thr
 * **Power-Set Construction (DFA):** Resolves non-determinism. This stage implements **Algorithmic Priority Resolution**—if a string mathematically matches multiple rules, the engine resolves the conflict during graph conversion rather than at runtime.
 * **State Minimization:** Minimizes the DFA using equivalence-class partitioning while strictly protecting rule priority boundaries.
 
-### 2. The Runtime Lexer: Maximal Munch
+### 2. Advanced Runtime Hardening
 
-The generated C++ code avoids dynamic backtracking graphs. Instead, it utilizes a highly cache-friendly 2D transition matrix.
+The generated C++ code avoids dynamic backtracking graphs, utilizing an encapsulated class structure centered on a highly cache-friendly 2D transition matrix.
 
-* **Mechanism:** The runtime implements the greedy **Maximal Munch** algorithm. It aggressively consumes characters until a dead-end is reached, then seamlessly rolls back the input stream to the last known accepting state.
-* **Benefit:** Ensures the longest valid token is universally matched while maintaining deterministic O(1) state transitions per character.
+* **Maximal Munch Rollback:** The runtime aggressively consumes characters until a dead-end is reached, then seamlessly rolls back the input stream via `putback()` to the last known accepting state.
+* **Precision Grid Tracking:** Integrates context-aware tracking directly into the stream skipper. It features terminal-grade tab-stop snapping math (`4 - ((currentCol - 1) % 4)`) and captures exact token start boundaries (`tokenStartCol`) to prevent location reporting drift.
+* **Deterministic Single-Byte Error Bounding:** When an invalid sequence is hit, the engine isolates the error to exactly one invalid character. It rolls back any subsequent over-read characters to preserve the integrity of upcoming token boundaries and yields a localized error state (`-2`).
 
 ## Specification Format (`.mz`)
 
@@ -85,7 +87,7 @@ int main() {
 ### Prerequisites
 
 * C++17 compliant compiler (GCC 9+ or Clang 10+)
-* CMake 3.10 or higher
+* CMake 3.15 or higher
 
 ### Compilation
 
@@ -98,10 +100,10 @@ make -j$(nproc)
 
 ### Running the Engine
 
-Compile your lexer specifications by passing them to the generator. Currently, the build executes an end-to-end internal test suite:
+Compile your lexer specifications by passing them to the generator executable:
 
 ```bash
-./metalyzer_app 
+./metalyzer_app <path_to_spec.mz>
 
 ```
 
@@ -109,7 +111,6 @@ Compile your lexer specifications by passing them to the generator. Currently, t
 
 With the foundational lexical engine complete, the suite is scheduled to expand into a complete language frontend:
 
-* **Action Code Injection:** Expanding the C++ generator to dynamically write user-defined action blocks (`{ return Token::IF; }`) into the runtime `switch` statement.
 * **Parser Generator:** Implementation of a `.my` specification parser to generate Abstract Syntax Trees (ASTs) using LALR/LR(1) lookahead tables.
 * **Semantic Analyzer:** AST validation passes for type-checking and logical constraint verification.
 * **LLVM Backend Integration:** A lowering phase (Codegen) to translate the validated AST into LLVM Intermediate Representation (IR), bridging the gap from custom syntax to executable machine code.
