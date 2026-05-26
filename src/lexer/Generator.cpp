@@ -112,12 +112,13 @@ public:
     bool hasMore() const;
 
     const int getLine() { return currentLine; }
-    const int getCol() { return currentCol; }
+    const int getCol() { return tokenStartCol; }
 
 private:
     std::istream& input;
     
     int currentLine = 1, currentCol = 1;
+    int tokenStartCol = 1;
 
     static const int TABLE_ROWS = @TABLE_ROWS@;
     static const int TRANS_TABLE[TABLE_ROWS][128];
@@ -154,12 +155,18 @@ int @CLASS_NAME@::nextToken(std::string& outLexeme) {
     
     // 1. Skip Whitespace
     while (hasMore() && std::isspace(input.peek())) {
-        if(input.peek() == '\n') { currentCol = 1; currentLine++; }
+        char ch = input.peek();
+        if(ch == '\n') { currentCol = 1; currentLine++; }
+        else if (ch == '\t') { currentCol += (4 - ((currentCol - 1) % 4)); }
         else currentCol++;
         input.get(); 
     }
 
     if (!hasMore()) return -1; // EOF
+    
+    // CAPTURE START BOUNDARY HERE!
+    // This is the exact column where the token text actually begins.
+    int tokCol = currentCol;
 
     int currentState = START_STATE;
     std::string buffer;
@@ -205,10 +212,9 @@ int @CLASS_NAME@::nextToken(std::string& outLexeme) {
             input.putback(buffer[i-1]);
         }
 
-        for(const char &ch : outLexeme){
-            if(ch == '\n'){ currentCol = 1; currentLine++; }
-            else currentCol++;
-        }
+        tokenStartCol = tokCol;
+
+        currentCol += outLexeme.length();
         
         @ACTION_SWITCH@
 
@@ -216,13 +222,23 @@ int @CLASS_NAME@::nextToken(std::string& outLexeme) {
     } else {
         // Error: We read some characters but never hit an accepting state
         if (!buffer.empty()) {
-            // Treat as an error token? Or just return the garbage?
-            // For now, let's return a special error code -2
-            outLexeme = buffer;
-            for(const char &ch : outLexeme){
-                if(ch == '\n'){ currentCol = 1; currentLine++; }
-                else currentCol++;
+            // 1. Only harvest the VERY FIRST character as the actual error lexeme
+            outLexeme = buffer.substr(0, 1);
+            
+            // 2. ROLLBACK: Put back all subsequent over-read characters 
+            // so they can be parsed cleanly on the next nextToken() cycles!
+            for (size_t i = buffer.length(); i > 1; --i) {
+                input.putback(buffer[i-1]);
             }
+            
+            // 3. Lock in the error's exact starting position for diagnostics
+            tokenStartCol = tokCol;
+            
+            // 4. Process coordinates precisely for this single invalid byte
+            char ch = outLexeme[0];
+            if(ch == '\n') { currentCol = 1; currentLine++; }
+            else if(ch == '\t') { currentCol += (4 - ((currentCol - 1) % 4)); }
+            else currentCol++;
             return -2; 
         }
         return -1; 
