@@ -7,32 +7,38 @@ enum class CalcToken {
     TOK_EOF = -1,
     TOK_ERROR = -2,
     NUM_INT = 1,
-    KW_PLUS = 2,
-    KW_MINUS = 3,
-    KW_MUL = 4,
-    KW_DIV = 5,
-    KW_ASSIGN = 6,
-    TOK_ID = 7
+    PLUS = 2,
+    MINUS = 3,
+    MUL = 4,
+    DIV = 5,
+    ASSIGN = 6,
+    ADD_ASSIGN = 7,
+    LPAREN = 8,
+    RPAREN = 9,
+    TOK_ID = 10 // Added to support variable tracking
 };
 %}
 
 %%
 
 [0-9]+    { return (int)CalcToken::NUM_INT; }
-plus      { return (int)CalcToken::KW_PLUS; }
-minus     { return (int)CalcToken::KW_MINUS; }
-mul       { return (int)CalcToken::KW_MUL; }
-div       { return (int)CalcToken::KW_DIV; }
-assign    { return (int)CalcToken::KW_ASSIGN; }
-[a-z]+    { return (int)CalcToken::TOK_ID; }
+[a-z]+    { return (int)CalcToken::TOK_ID; } // Fix: Added an identifier rule to consume 'x'
+\+=       { return (int)CalcToken::ADD_ASSIGN; }
+=         { return (int)CalcToken::ASSIGN; }
+\+        { return (int)CalcToken::PLUS; }
+-         { return (int)CalcToken::MINUS; }
+\* { return (int)CalcToken::MUL; }
+/         { return (int)CalcToken::DIV; }
+\(        { return (int)CalcToken::LPAREN; }
+\)        { return (int)CalcToken::RPAREN; }
 
 %%
 
 int main() {
     using namespace user_code;
 
-    std::cout << "=== Testing Alphanumeric Calculator Lexer ===\n";
-    std::string input = "x assign 10 plus 25 mul a";
+    std::cout << "--- Testing Calculator Lexer ---\n";
+    std::string input = "x = 10 + 25 * (4 - 2) += 5";
     std::stringstream stream(input);
 
     MyLexer lexer(stream);
@@ -46,7 +52,14 @@ int main() {
                   << "] | Location: L" << lexer.getLine() 
                   << " C" << lexer.getCol() << "\n";
         
-        if (tok == -1 || tok == -2) break;
+        if (tok == -1) {
+            std::cout << "Reached EOF cleanly.\n";
+            break;
+        }
+        if (tok == -2) {
+            std::cout << "Lexical error encountered!\n";
+            break;
+        }
     }
     return 0;
 }

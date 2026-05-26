@@ -162,18 +162,25 @@ std::string ThompsonConstructor::preprocess(const std::string &regex) {
       res += unionGroup;
 
       a = ')';
+    } else if (a == '\\') {
+      res += '\\';
+      i++;
+      if (i < static_cast<int>(regex.size())) {
+        a = regex[i];
+        res += a;
+      }
     } else
       res += a;
     bool aIsFinisher =
         (isLiteral(a) || a == '*' || a == '+' || a == '?' || a == ')');
+    char b = '\0';
     if (i + 1 < static_cast<int>(regex.size())) {
-      char b = regex[i + 1];
+      b = regex[i + 1];
+    }
+    bool bIsStarter = (isLiteral(b) || b == '(' || b == '[' || b == '\\');
 
-      bool bIsStarter = (isLiteral(b) || b == '(' || b == '[');
-
-      if (aIsFinisher && bIsStarter) {
-        res += '.';
-      }
+    if (aIsFinisher && bIsStarter) {
+      res += '.';
     }
   }
   return res;
@@ -182,8 +189,17 @@ std::string ThompsonConstructor::preprocess(const std::string &regex) {
 std::string ThompsonConstructor::shunt_yard(const std::string &regex) {
   std::string postfix;
   std::stack<char> st;
+  bool isEscaped = false;
   for (char ch : regex) {
-    if (isLiteral(ch))
+    if (isEscaped) {
+      postfix += ch;
+      isEscaped = false;
+      continue;
+    } else if (ch == '\\') {
+      postfix += '\\';
+      isEscaped = true;
+      continue;
+    } else if (isLiteral(ch))
       postfix += ch;
     else if (ch == '(')
       st.push(ch);
@@ -224,8 +240,16 @@ NFA ThompsonConstructor::build(const std::string &regexPattern,
                                const int ruleId) {
   std::string regex = shunt_yard(preprocess(regexPattern));
   std::stack<NFA> eval;
+  bool isEscaped = false;
   for (char ch : regex) {
-    if (isLiteral(ch))
+    if (isEscaped) {
+      eval.push(createBasic(ch));
+      isEscaped = false;
+      continue;
+    } else if (ch == '\\') {
+      isEscaped = true;
+      continue;
+    } else if (isLiteral(ch))
       eval.push(createBasic(ch));
     // Handle *
     else if (ch == '*') {
