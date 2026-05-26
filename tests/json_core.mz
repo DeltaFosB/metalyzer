@@ -1,0 +1,58 @@
+%{
+#include <iostream>
+#include <string>
+#include <sstream>
+
+enum class JsonToken {
+    TOK_EOF = -1,
+    TOK_ERROR = -2,
+    OBJ_START = 1,
+    OBJ_END = 2,
+    ARR_START = 3,
+    ARR_END = 4,
+    COLON = 5,
+    COMMA = 6,
+    KW_TRUE = 7,
+    KW_FALSE = 8,
+    KW_NULL = 9,
+    STRING_LIT = 10
+};
+%}
+
+%%
+
+\{        { return (int)JsonToken::OBJ_START; }
+\}        { return (int)JsonToken::OBJ_END; }
+\[        { return (int)JsonToken::ARR_START; }
+\]        { return (int)JsonToken::ARR_END; }
+:         { return (int)JsonToken::COLON; }
+,         { return (int)JsonToken::COMMA; }
+true      { return (int)JsonToken::KW_TRUE; }
+false     { return (int)JsonToken::KW_FALSE; }
+null      { return (int)JsonToken::KW_NULL; }
+\"[a-z]+\" { return (int)JsonToken::STRING_LIT; }
+
+%%
+
+int main() {
+    using namespace user_code;
+
+    std::cout << "--- Testing JSON Core Lexer ---\n";
+    std::string input = "{ \"status\": true, \"data\": null }";
+    std::stringstream stream(input);
+
+    MyLexer lexer(stream);
+    std::string lexeme;
+    int tok;
+
+    while (lexer.hasMore()) {
+        tok = lexer.nextToken(lexeme);
+        std::cout << "Token ID: " << tok 
+                  << " | Lexeme: [" << lexeme 
+                  << "] | Location: L" << lexer.getLine() 
+                  << " C" << lexer.getCol() << "\n";
+        
+        if (tok == -1 || tok == -2) break;
+    }
+    return 0;
+}
