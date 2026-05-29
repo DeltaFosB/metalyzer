@@ -23,3 +23,7 @@ if(MSVC)
 else()
     target_compile_options(metalyzer_lexer PRIVATE -Wall -Wextra -Wpedantic)
 endif()
+
+include(CTest)
+enable_testing()
+add_subdirectory(tests)
