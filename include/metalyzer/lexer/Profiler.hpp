@@ -35,17 +35,21 @@ struct ProfilingMetrics {
   std::string getCacheClaimString() const {
     uint64_t footprint = getMatrixFootprint();
     if (footprint <= 32768) {
-      return "— fits comfortably in L1 Data Cache (32KB boundary)";
-    } else if (footprint <= 262144) {
-      return "— slips L1; fits cleanly in L2 Unified Cache (256KB boundary)";
+      return "— fits within L1 data cache (32KB boundary)";
     } else {
-      return "— resident in L3/Main Memory; monitor transition loop cache line "
-             "misses";
+      return "— transition table — L2 cache resident";
     }
+  }
+
+  std::string getCacheTier() const {
+    return (getMatrixFootprint() <= 32768) ? "L1" : "L2";
   }
 };
 
+// Kept your exact function signature, adding the target output folder hook
 void printProfilingReport(const std::string &spec_name,
-                          const ProfilingMetrics &metrics);
+                          const ProfilingMetrics &metrics,
+                          const std::string &output_dir = "generated_lexer");
+
 } // namespace lexer
 } // namespace metalyzer

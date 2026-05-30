@@ -4,6 +4,7 @@
 #include <metalyzer/lexer/LexerBuilder.hpp>
 #include <metalyzer/lexer/TransTable.hpp>
 
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -82,8 +83,12 @@ int main(int argc, char *argv[]) {
   ss << mzfilestream.rdbuf();
   std::string fileContent = ss.str();
 
-  std::cout << "=== Metalyzer Parser & Builder Test ===\n";
+  // Extract the filename context dynamically (e.g., "../specs/json_core.mz" ->
+  // "json_core")
+  std::filesystem::path specPath(argv[1]);
+  std::string dynamicGrammarName = specPath.stem().string();
 
+  std::cout << "=== Metalyzer Parser & Builder Test ===\n";
   std::cout << "Input File Content:\n" << fileContent << "\n\n";
 
   std::cout << ">>> Parsing .mz content...\n";
@@ -107,14 +112,17 @@ int main(int argc, char *argv[]) {
               << "' -> Action: '" << rule.actionCode << "'\n";
   }
 
-  std::cout << "\n>>> Building Lexer Engine...\n";
+  std::cout << "\n>>> Building Lexer Engine for grammar: " << dynamicGrammarName
+            << "...\n";
   metalyzer::lexer::LexerBuilder builder;
 
   for (const auto &rule : spec.rules) {
     builder.addRule(rule.regex, rule.priority);
   }
 
-  metalyzer::lexer::TransTable table = builder.build();
+  // Pass your dynamically resolved grammar name directly into the build
+  // execution layer
+  metalyzer::lexer::TransTable table = builder.build(dynamicGrammarName);
   printTransTable(table);
 
   std::cout << "\n>>> Generating C++ Lexer Code...\n";
@@ -124,7 +132,6 @@ int main(int argc, char *argv[]) {
   config.namespaceName = "user_code";
 
   metalyzer::generator::Generator gen(config);
-
   gen.generate(table, spec);
 
   std::cout << "Done! Output in 'generated_lexer/'\n";

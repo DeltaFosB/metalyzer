@@ -12,7 +12,7 @@ namespace lexer {
 class LexerBuilder {
 public:
   void addRule(const std::string &regex, int ruleId);
-  TransTable build();
+  TransTable build(const std::string &spec_name = "<spec_name>");
 
 private:
   struct Rule {
