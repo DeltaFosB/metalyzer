@@ -104,7 +104,7 @@ int main() {
   std::cout << "---------------------------------------------------------------"
                "----------\n";
   std::cout << " METRIC                     | COLD PASS          | WARM PASS   "
-               "       \n";
+               "        \n";
   std::cout << "---------------------------------------------------------------"
                "----------\n";
   std::cout << " Time Elapsed (seconds)     | " << std::left << std::setw(18)
@@ -132,7 +132,3 @@ int main() {
 
   return 0;
 }
-
-#define main lexer_dummy_main
-#include <MyLexer.cpp>
-#undef main

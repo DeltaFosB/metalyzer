@@ -34,10 +34,10 @@ else()
     target_compile_options(metalyzer_app PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-# 1. Define the abstract path variable for the generated code target
+# Define the abstract path variable for the generated code target
 set(GENERATED_LEXER_SRC "${CMAKE_CURRENT_BINARY_DIR}/generated_lexer/MyLexer.cpp")
 
-# 2. Bind the AOT compiler generation step directly into the build graph dependency tree
+# Bind the AOT compiler generation step directly into the build graph dependency tree
 add_custom_command(
     OUTPUT ${GENERATED_LEXER_SRC}
     COMMAND metalyzer_app ${CMAKE_CURRENT_SOURCE_DIR}/tests/specs/calculator.mz
@@ -45,10 +45,10 @@ add_custom_command(
     COMMENT "Automated AOT Generation: Processing grammar spec into user_code::MyLexer"
 )
 
-# 3. Compile the generated source executable target under your preferred name
+# Compile the generated source executable target under your preferred name
 add_executable(run_lexer ${GENERATED_LEXER_SRC})
 
-# 4. Bind include paths for header lookups
+# Bind include paths for header lookups
 target_include_directories(run_lexer PRIVATE 
     ${CMAKE_CURRENT_BINARY_DIR}/generated_lexer
 )
@@ -60,7 +60,7 @@ include(CTest)
 enable_testing()
 
 if(BUILD_TESTING)
-    # Block D Integration Test: Assert that the generation binary runs and outputs the profile JSON
+    # Assert that the generation binary runs and outputs the profile JSON
     add_test(NAME ProfileJsonExists
         COMMAND metalyzer_app ${CMAKE_CURRENT_SOURCE_DIR}/tests/specs/calculator.mz
     )
@@ -80,23 +80,51 @@ if(BUILD_TESTING)
 endif()
 
 # =========================================================================
-# PERFORMANCE BENCHMARKING ENGINE LABS
+# MODULAR BENCHMARKING ENGINE & TEST AUTOMATION
 # =========================================================================
 
-# Target A: Register the custom Metalyzer benchmark target
-add_executable(bench_calculator 
-    benchmarks/bench_calculator.cpp
+# Define a CMake library target wrapping the generated source code outputs
+add_library(generated_lexer_lib STATIC 
+    ${GENERATED_LEXER_SRC}
 )
 
-target_include_directories(bench_calculator PRIVATE 
+# Prevent duplicate main definition by renaming it during library compilation
+target_compile_definitions(generated_lexer_lib PRIVATE main=generated_lexer_main)
+
+if(NOT MSVC)
+    target_compile_options(generated_lexer_lib PRIVATE -O3 -march=native)
+endif()
+
+# Bind lookup directories for library compilation and client include passes
+target_include_directories(generated_lexer_lib PUBLIC 
     ${CMAKE_CURRENT_BINARY_DIR}/generated_lexer
 )
 
+# Register the throughput benchmark binary executable
+add_executable(metalyzer_bench 
+    benchmarks/bench_throughput.cpp
+)
+
+# Link cleanly against the modular generated library target module
+target_link_libraries(metalyzer_bench PRIVATE 
+    generated_lexer_lib
+)
+
+# Maximize compilation runtime execution optimization settings
 if(NOT MSVC)
-    target_compile_options(bench_calculator PRIVATE -O3 -march=native)
+    target_compile_options(metalyzer_bench PRIVATE -O3 -march=native)
 endif()
 
-# Target B: Locate and bind the Industry-Standard Flex baseline target
+# Register the automated tracking validation test under the CTest profile harness
+if(BUILD_TESTING)
+    add_test(NAME ThroughputBenchmark
+        COMMAND metalyzer_bench
+    )
+endif()
+
+# =========================================================================
+# INDUSTRY BASELINE TARGET: FLEX COMPARISON SANDBOX
+# =========================================================================
 find_package(FLEX REQUIRED)
 
 if(FLEX_FOUND)
