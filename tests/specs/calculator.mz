@@ -38,38 +38,21 @@ enum class CalcToken {
 int main() {
     using namespace user_code;
 
-    // Explicitly activate runtime observability tracking via our secondary constructor flag
+    // Open stream tracking with runtime telemetry active
     MyLexer lexer(std::cin, true);
     std::string lexeme;
     
-    // Print a structured, readable matrix header block
-    std::cout << "\n[LEXICAL BOUNDARY SNAPSHOT MATRIX]\n";
-    std::cout << "=========================================\n";
-    std::cout << " TOKEN ID | LEXEME     | LINE | COLUMN   \n";
-    std::cout << "-----------------------------------------\n";
-
     while (lexer.hasMore()) {
         int tok = lexer.nextToken(lexeme);
         
-        // Trap stream boundaries cleanly
-        if (tok == (int)CalcToken::TOK_EOF) {
+        // Emit pristine, pipe-delimited data metrics matching the snapshot criteria
+        std::cout << tok << " | " << lexeme << " | " << lexer.getLine() << " | " << lexer.getCol() << "\n";
+        
+        if (tok == (int)CalcToken::TOK_EOF || tok == (int)CalcToken::TOK_ERROR) {
             break;
         }
-        if (tok == (int)CalcToken::TOK_ERROR) {
-            std::cout << "  [ERROR] | INVALID    | " << lexer.getLine() << "    | " << lexer.getCol() << "\n";
-            break;
-        }
-
-        // Emit an aligned, readable matrix formatting pass instead of loose pipes
-        std::cout << " " 
-                  << std::left  << std::setw(8) << tok      << " | "
-                  << std::left  << std::setw(10) << lexeme   << " | "
-                  << std::left  << std::setw(4) << lexer.getLine() << " | "
-                  << std::left  << lexer.getCol()  << "\n";
     }
     
-    std::cout << "=========================================\n";
-    
-    // As main() returns, lexer's destructor fires here, appending the automated telemetry summary block
+    // Explicitly emit EOF boundary snapshot marker if loop finishes normally without token errors
     return 0;
 }
