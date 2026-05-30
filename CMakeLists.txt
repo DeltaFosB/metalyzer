@@ -34,6 +34,25 @@ else()
     target_compile_options(metalyzer_app PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
+# 1. Define the abstract path variable for the generated code target
+set(GENERATED_LEXER_SRC "${CMAKE_CURRENT_BINARY_DIR}/generated_lexer/MyLexer.cpp")
+
+# 2. Bind the AOT compiler generation step directly into the build graph dependency tree
+add_custom_command(
+    OUTPUT ${GENERATED_LEXER_SRC}
+    COMMAND metalyzer_app ${CMAKE_CURRENT_SOURCE_DIR}/tests/specs/calculator.mz
+    DEPENDS metalyzer_app
+    COMMENT "Automated AOT Generation: Processing grammar spec into user_code::MyLexer"
+)
+
+# 3. Compile the generated source executable target under your preferred name
+add_executable(run_lexer ${GENERATED_LEXER_SRC})
+
+# 4. Bind include paths for header lookups
+target_include_directories(run_lexer PRIVATE 
+    ${CMAKE_CURRENT_BINARY_DIR}/generated_lexer
+)
+
 include(CTest)
 enable_testing()
 add_subdirectory(tests)

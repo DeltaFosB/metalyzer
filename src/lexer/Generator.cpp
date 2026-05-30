@@ -104,7 +104,9 @@ namespace @NAMESPACE@ {
 
 class @CLASS_NAME@ {
 public:
-    explicit @CLASS_NAME@(std::istream& input);
+    // Telemetry control state passed directly via constructor reference boundary
+    explicit @CLASS_NAME@(std::istream& input, bool enableTelemetry = false);
+    ~@CLASS_NAME@();
     
     // Returns -1 on EOF, -2 on Error.
     int nextToken(std::string& outLexeme);
@@ -113,6 +115,9 @@ public:
 
     const int getLine() { return currentLine; }
     const int getCol() { return tokenStartCol; }
+    
+    // Runtime telemetry inspection API
+    unsigned long long getProcessedTokenCount() const { return m_total_tokens_processed; }
 
 private:
     std::istream& input;
@@ -126,6 +131,10 @@ private:
     static const int ACCEPT_RULES[TABLE_ROWS];
     
     static const int START_STATE = @START_STATE@;
+
+    // Decoupled runtime metric state rows
+    bool m_telemetry_active = false;
+    unsigned long long m_total_tokens_processed = 0;
 };
 
 } // namespace @NAMESPACE@
@@ -144,7 +153,15 @@ const int @CLASS_NAME@::TRANS_TABLE[@TABLE_ROWS@][128] = @TABLE_DATA@;
 const int @CLASS_NAME@::ACCEPT_RULES[@TABLE_ROWS@] = @ACCEPT_DATA@;
 
 // --- IMPLEMENTATION ---
-@CLASS_NAME@::@CLASS_NAME@(std::istream& in) : input(in) {}
+@CLASS_NAME@::@CLASS_NAME@(std::istream& in, bool enableTelemetry) 
+    : input(in), m_telemetry_active(enableTelemetry) {}
+
+@CLASS_NAME@::~@CLASS_NAME@() {
+    if (m_telemetry_active) {
+        std::cout << "\n[Metalyzer Runtime Telemetry]\n";
+        std::cout << "  METAMETRIC_TOKEN_COUNT: " << m_total_tokens_processed << "\n";
+    }
+}
 
 bool @CLASS_NAME@::hasMore() const {
     return input.good() && input.peek() != EOF;
@@ -164,37 +181,29 @@ int @CLASS_NAME@::nextToken(std::string& outLexeme) {
 
     if (!hasMore()) return -1; // EOF
     
-    // CAPTURE START BOUNDARY HERE!
-    // This is the exact column where the token text actually begins.
     int tokCol = currentCol;
-
     int currentState = START_STATE;
     std::string buffer;
     
-    // Tracking for Maximal Munch (Longest Match)
     int lastGoodRule = -1;
     size_t lastGoodLength = 0;
 
     // 2. Driver Loop (Greedy Consumption)
     while (hasMore()) {
         char c = input.peek();
-        
-        // Ensure char is within 0-127
         if (c < 0 || c > 127) break; 
 
         int nextState = TRANS_TABLE[currentState][(int)c];
 
-        if (nextState == -1) {
+        if (nextState == -1){
             // No transition possible. Stop reading.
             break;
         }
 
-        // Consume and Advance
         buffer += c;
         input.get();
         currentState = nextState;
         
-        // Is this new state accepting?
         if (ACCEPT_RULES[currentState] != -1) {
             lastGoodRule = ACCEPT_RULES[currentState];
             lastGoodLength = buffer.length();
@@ -203,38 +212,31 @@ int @CLASS_NAME@::nextToken(std::string& outLexeme) {
 
     // 3. Final Decision
     if (lastGoodRule != -1) {
-        // We found a match!
         outLexeme = buffer.substr(0, lastGoodLength);
         
-        // ROLLBACK: Put back any characters we read that weren't part of the match
-        // e.g. Input "intx", matched "int", read "intx". Put back 'x'.
         for (size_t i = buffer.length(); i > lastGoodLength; --i) {
             input.putback(buffer[i-1]);
         }
 
         tokenStartCol = tokCol;
-
         currentCol += outLexeme.length();
+        
+        // Accumulate verified token match occurrences safely if toggled
+        if (m_telemetry_active) {
+            m_total_tokens_processed++;
+        }
         
         @ACTION_SWITCH@
 
         return lastGoodRule;
-    } else {
-        // Error: We read some characters but never hit an accepting state
+  } else {
         if (!buffer.empty()) {
-            // 1. Only harvest the VERY FIRST character as the actual error lexeme
             outLexeme = buffer.substr(0, 1);
-            
-            // 2. ROLLBACK: Put back all subsequent over-read characters 
-            // so they can be parsed cleanly on the next nextToken() cycles!
             for (size_t i = buffer.length(); i > 1; --i) {
                 input.putback(buffer[i-1]);
             }
             
-            // 3. Lock in the error's exact starting position for diagnostics
             tokenStartCol = tokCol;
-            
-            // 4. Process coordinates precisely for this single invalid byte
             char ch = outLexeme[0];
             if(ch == '\n') { currentCol = 1; currentLine++; }
             else if(ch == '\t') { currentCol += (4 - ((currentCol - 1) % 4)); }

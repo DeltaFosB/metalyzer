@@ -14,6 +14,9 @@ public:
     std::string className = "Lexer";
     std::string namespaceName = "generated";
     std::filesystem::path outputDir = "generated";
+
+    // Low-overhead toggle to instrument generated AOT runtime components
+    bool enableRuntimeObservability = false;
   };
 
   explicit Generator(const Config &config);

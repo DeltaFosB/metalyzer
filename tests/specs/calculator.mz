@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <iomanip>
 
 enum class CalcToken {
     TOK_EOF = -1,
@@ -15,14 +16,14 @@ enum class CalcToken {
     ADD_ASSIGN = 7,
     LPAREN = 8,
     RPAREN = 9,
-    TOK_ID = 10 // Added to support variable tracking
+    TOK_ID = 10
 };
 %}
 
 %%
 
 [0-9]+    { return (int)CalcToken::NUM_INT; }
-[a-z]+    { return (int)CalcToken::TOK_ID; } // Fix: Added an identifier rule to consume 'x'
+[a-z]+    { return (int)CalcToken::TOK_ID; }
 \+=       { return (int)CalcToken::ADD_ASSIGN; }
 =         { return (int)CalcToken::ASSIGN; }
 \+        { return (int)CalcToken::PLUS; }
@@ -37,23 +38,38 @@ enum class CalcToken {
 int main() {
     using namespace user_code;
 
-    // Point the lexer directly to standard input for dynamic runtime piping
-    MyLexer lexer(std::cin);
+    // Explicitly activate runtime observability tracking via our secondary constructor flag
+    MyLexer lexer(std::cin, true);
     std::string lexeme;
-    int tok;
+    
+    // Print a structured, readable matrix header block
+    std::cout << "\n[LEXICAL BOUNDARY SNAPSHOT MATRIX]\n";
+    std::cout << "=========================================\n";
+    std::cout << " TOKEN ID | LEXEME     | LINE | COLUMN   \n";
+    std::cout << "-----------------------------------------\n";
 
     while (lexer.hasMore()) {
-        tok = lexer.nextToken(lexeme);
+        int tok = lexer.nextToken(lexeme);
         
-        // Emit airtight, pipe-delimited data metrics for the snapshot validation matrix
-        std::cout << tok << " | " << lexeme << " | " << lexer.getLine() << " | " << lexer.getCol() << "\n";
-        
-        if (tok == -1) {
+        // Trap stream boundaries cleanly
+        if (tok == (int)CalcToken::TOK_EOF) {
             break;
         }
-        if (tok == -2) {
+        if (tok == (int)CalcToken::TOK_ERROR) {
+            std::cout << "  [ERROR] | INVALID    | " << lexer.getLine() << "    | " << lexer.getCol() << "\n";
             break;
         }
+
+        // Emit an aligned, readable matrix formatting pass instead of loose pipes
+        std::cout << " " 
+                  << std::left  << std::setw(8) << tok      << " | "
+                  << std::left  << std::setw(10) << lexeme   << " | "
+                  << std::left  << std::setw(4) << lexer.getLine() << " | "
+                  << std::left  << lexer.getCol()  << "\n";
     }
+    
+    std::cout << "=========================================\n";
+    
+    // As main() returns, lexer's destructor fires here, appending the automated telemetry summary block
     return 0;
 }
