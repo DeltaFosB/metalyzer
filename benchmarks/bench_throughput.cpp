@@ -88,47 +88,57 @@ int main() {
   std::cout << "Payload Weight:         " << std::fixed << std::setprecision(2)
             << data_size_mb << " MB\n\n";
 
-  std::cout << "[*] Executing Cold Pass Sweep..." << std::flush;
-  PassMetrics cold_pass = run_benchmark_pass(flat_input_payload);
+  std::cout << "[*] Executing Pass 1 (Cold)..." << std::flush;
+  PassMetrics pass1 = run_benchmark_pass(flat_input_payload);
   std::cout << " Done.\n";
 
-  std::cout << "[*] Executing Warm Pass Sweep..." << std::flush;
-  PassMetrics warm_pass = run_benchmark_pass(flat_input_payload);
+  std::cout << "[*] Executing Pass 2 (Warm)..." << std::flush;
+  PassMetrics pass2 = run_benchmark_pass(flat_input_payload);
+  std::cout << " Done.\n";
+
+  std::cout << "[*] Executing Pass 3 (Warm)..." << std::flush;
+  PassMetrics pass3 = run_benchmark_pass(flat_input_payload);
   std::cout << " Done.\n\n";
 
   double cache_delta_pct =
-      ((warm_pass.mb_per_sec - cold_pass.mb_per_sec) / cold_pass.mb_per_sec) *
-      100.0;
+      ((pass2.mb_per_sec - pass1.mb_per_sec) / pass1.mb_per_sec) * 100.0;
+
+  double stability_delta_pct =
+      ((pass3.mb_per_sec - pass2.mb_per_sec) / pass2.mb_per_sec) * 100.0;
 
   std::cout << "[PERFORMANCE RESULT MATRIX]\n";
   std::cout << "---------------------------------------------------------------"
-               "----------\n";
-  std::cout << " METRIC                     | COLD PASS          | WARM PASS   "
-               "        \n";
+               "------------------\n";
+  std::cout << " METRIC                     | PASS 1 (COLD)      | PASS 2 "
+               "(WARM)      | PASS 3 (WARM)\n";
   std::cout << "---------------------------------------------------------------"
-               "----------\n";
+               "------------------\n";
   std::cout << " Time Elapsed (seconds)     | " << std::left << std::setw(18)
-            << std::setprecision(6) << cold_pass.elapsed_seconds << " | "
-            << std::left << std::setw(18) << warm_pass.elapsed_seconds << "\n";
+            << std::setprecision(6) << pass1.elapsed_seconds << " | "
+            << std::left << std::setw(18) << pass2.elapsed_seconds << " | "
+            << std::left << std::setw(18) << pass3.elapsed_seconds << "\n";
   std::cout << " Total Scanned Tokens       | " << std::left << std::setw(18)
-            << cold_pass.total_tokens << " | " << std::left << std::setw(18)
-            << warm_pass.total_tokens << "\n";
+            << pass1.total_tokens << " | " << std::left << std::setw(18)
+            << pass2.total_tokens << " | " << std::left << std::setw(18)
+            << pass3.total_tokens << "\n";
   std::cout << " Processing Velocity        | " << std::left << std::setw(10)
-            << std::setprecision(2) << cold_pass.mb_per_sec << " MB/sec | "
-            << std::left << std::setw(10) << warm_pass.mb_per_sec
-            << " MB/sec\n";
+            << std::setprecision(2) << pass1.mb_per_sec << " MB/sec | "
+            << std::left << std::setw(10) << pass2.mb_per_sec << " MB/sec | "
+            << std::left << std::setw(10) << pass3.mb_per_sec << " MB/sec\n";
   std::cout << " Token Density Throughput   | " << std::left << std::setw(10)
-            << std::scientific << cold_pass.tokens_per_sec << " tok/s | "
-            << std::left << std::setw(10) << warm_pass.tokens_per_sec
-            << " tok/s\n";
+            << std::scientific << pass1.tokens_per_sec << " tok/s | "
+            << std::left << std::setw(10) << pass2.tokens_per_sec << " tok/s | "
+            << std::left << std::setw(10) << pass3.tokens_per_sec << " tok/s\n";
   std::cout << "---------------------------------------------------------------"
-               "----------\n";
+               "------------------\n";
 
   std::cout << std::fixed << std::setprecision(2);
-  std::cout << "Derived Cache-Warmup Acceleration Delta: " << cache_delta_pct
-            << "%\n";
+  std::cout << "Derived Cache-Warmup Acceleration Delta (Pass 1 -> Pass 2): "
+            << cache_delta_pct << "%\n";
+  std::cout << "Warm Run Stability Deviation Delta (Pass 2 -> Pass 3):      "
+            << stability_delta_pct << "%\n";
   std::cout << "==============================================================="
-               "==========\n\n";
+               "==================\n\n";
 
   return 0;
 }
