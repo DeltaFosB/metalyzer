@@ -21,39 +21,45 @@ enum class JsonToken {
 
 %%
 
-\{        { return (int)JsonToken::OBJ_START; }
-\}        { return (int)JsonToken::OBJ_END; }
-\[        { return (int)JsonToken::ARR_START; }
-\]        { return (int)JsonToken::ARR_END; }
-:         { return (int)JsonToken::COLON; }
-,         { return (int)JsonToken::COMMA; }
-true      { return (int)JsonToken::KW_TRUE; }
-false     { return (int)JsonToken::KW_FALSE; }
-null      { return (int)JsonToken::KW_NULL; }
-\"[a-z]+\" { return (int)JsonToken::STRING_LIT; }
+\{         { return (int)JsonToken::OBJ_START; }
+\}         { return (int)JsonToken::OBJ_END; }
+\[         { return (int)JsonToken::ARR_START; }
+\]         { return (int)JsonToken::ARR_END; }
+:          { return (int)JsonToken::COLON; }
+,          { return (int)JsonToken::COMMA; }
+true       { return (int)JsonToken::KW_TRUE; }
+false      { return (int)JsonToken::KW_FALSE; }
+null       { return (int)JsonToken::KW_NULL; }
+
+/* Expanded string rule: captures printable ASCII, spaces, and escaped sequences like \\ or \" */
+\"([a-zA-Z0-9[:space:]!#-\[\]-~]|\\[\"\\/bfnrt])*\" { return (int)JsonToken::STRING_LIT; }
 
 %%
 
 int main() {
     using namespace user_code;
 
-    // Point the lexer directly to standard input for dynamic runtime piping
-    MyLexer lexer(std::cin);
+    // Instantiate with telemetry explicitly deactivated to isolate throughput speed
+    MyLexer lexer(std::cin, false);
     std::string lexeme;
-    int tok;
-
+    
     while (lexer.hasMore()) {
-        tok = lexer.nextToken(lexeme);
+        int tok = lexer.nextToken(lexeme);
         
-        // Emit airtight, pipe-delimited data metrics for the snapshot validation matrix
+        if (tok == (int)JsonToken::TOK_EOF) {
+            break;
+        }
+        
+        if (tok == (int)JsonToken::TOK_ERROR) {
+            // Log the error coordinate metrics but continue scanning to pull the full payload through
+            std::cout << "Lexical Error | Lexeme: " << lexeme 
+                      << " | Line: " << lexer.getLine() 
+                      << " | Col: " << lexer.getCol() << "\n";
+            continue;
+        }
+        
+        // Emit pristine, pipe-delimited data metrics matching the snapshot criteria
         std::cout << tok << " | " << lexeme << " | " << lexer.getLine() << " | " << lexer.getCol() << "\n";
-        
-        if (tok == -1) {
-            break;
-        }
-        if (tok == -2) {
-            break;
-        }
     }
     return 0;
 }

@@ -229,8 +229,23 @@ int @CLASS_NAME@::nextToken(std::string& outLexeme) {
         @ACTION_SWITCH@
 
         return lastGoodRule;
-  } else {
-        if (!buffer.empty()) {
+    } else {
+        if (buffer.empty()) {
+            // Fix: Explicitly pull the immediate unmapped character out of the stream
+            char fault_char = input.get();
+            outLexeme = std::string(1, fault_char);
+            
+            tokenStartCol = tokCol;
+            if (fault_char == '\n') { 
+                currentCol = 1; 
+                currentLine++; 
+            } else if (fault_char == '\t') { 
+                currentCol += (4 - ((currentCol - 1) % 4)); 
+            } else { 
+                currentCol++; 
+            }
+            return -2; // Return clean error indicator token boundary
+        } else {
             outLexeme = buffer.substr(0, 1);
             for (size_t i = buffer.length(); i > 1; --i) {
                 input.putback(buffer[i-1]);
@@ -243,7 +258,6 @@ int @CLASS_NAME@::nextToken(std::string& outLexeme) {
             else currentCol++;
             return -2; 
         }
-        return -1; 
     }
 }
 

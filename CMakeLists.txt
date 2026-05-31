@@ -135,8 +135,8 @@ if(FLEX_FOUND)
     add_custom_command(
         OUTPUT ${FLEX_OUTPUT_CPP}
         COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/generated_flex"
-        COMMAND ${FLEX_EXECUTABLE} -o ${FLEX_OUTPUT_CPP} ${FLEX_COMPARE_DIR}/lex_calculator.l
-        DEPENDS ${FLEX_COMPARE_DIR}/lex_calculator.l
+        COMMAND ${FLEX_EXECUTABLE} -o ${FLEX_OUTPUT_CPP} ${FLEX_COMPARE_DIR}/calculator.l
+        DEPENDS ${FLEX_COMPARE_DIR}/calculator.l
         COMMENT "Generating industry-standard Flex scanner implementation source..."
     )
     
