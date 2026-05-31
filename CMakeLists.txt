@@ -34,24 +34,101 @@ else()
     target_compile_options(metalyzer_app PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-# Define the abstract path variable for the generated code target
-set(GENERATED_LEXER_SRC "${CMAKE_CURRENT_BINARY_DIR}/generated_lexer/MyLexer.cpp")
+# =========================================================================
+# AUTOMATED AOT MULTI-GRAMMAR CODE GENERATION MATRIX
+# =========================================================================
+set(GEN_ROOT "${CMAKE_CURRENT_BINARY_DIR}/generated_grammars")
 
-# Bind the AOT compiler generation step directly into the build graph dependency tree
+# Target the precise generated_lexer subfolder layout dropped by your app
+set(CALC_GEN_SRC    "${GEN_ROOT}/calculator/generated_lexer/MyLexer.cpp")
+set(JSON_GEN_SRC    "${GEN_ROOT}/json_core/generated_lexer/MyLexer.cpp")
+set(CSUB_GEN_SRC    "${GEN_ROOT}/c_subset/generated_lexer/MyLexer.cpp")
+
+# 1. Calculator AOT generation path
 add_custom_command(
-    OUTPUT ${GENERATED_LEXER_SRC}
-    COMMAND metalyzer_app ${CMAKE_CURRENT_SOURCE_DIR}/tests/specs/calculator.mz
+    OUTPUT ${CALC_GEN_SRC} "${GEN_ROOT}/calculator/generated_lexer/MyLexer.hpp"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${GEN_ROOT}/calculator"
+    COMMAND cd "${GEN_ROOT}/calculator" && ${CMAKE_CURRENT_BINARY_DIR}/metalyzer_app ${CMAKE_CURRENT_SOURCE_DIR}/tests/specs/calculator.mz
     DEPENDS metalyzer_app
-    COMMENT "Automated AOT Generation: Processing grammar spec into user_code::MyLexer"
+    COMMENT "Automated AOT Generation: Processing calculator grammar spec"
 )
 
-# Compile the generated source executable target under your preferred name
-add_executable(run_lexer ${GENERATED_LEXER_SRC})
-
-# Bind include paths for header lookups
-target_include_directories(run_lexer PRIVATE 
-    ${CMAKE_CURRENT_BINARY_DIR}/generated_lexer
+# 2. JSON Core AOT generation path
+add_custom_command(
+    OUTPUT ${JSON_GEN_SRC} "${GEN_ROOT}/json_core/generated_lexer/MyLexer.hpp"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${GEN_ROOT}/json_core"
+    COMMAND cd "${GEN_ROOT}/json_core" && ${CMAKE_CURRENT_BINARY_DIR}/metalyzer_app ${CMAKE_CURRENT_SOURCE_DIR}/tests/specs/json_core.mz
+    DEPENDS metalyzer_app
+    COMMENT "Automated AOT Generation: Processing JSON Core grammar spec"
 )
+
+# 3. C Subset AOT generation path
+add_custom_command(
+    OUTPUT ${CSUB_GEN_SRC} "${GEN_ROOT}/c_subset/generated_lexer/MyLexer.hpp"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${GEN_ROOT}/c_subset"
+    COMMAND cd "${GEN_ROOT}/c_subset" && ${CMAKE_CURRENT_BINARY_DIR}/metalyzer_app ${CMAKE_CURRENT_SOURCE_DIR}/tests/specs/c_subset.mz
+    DEPENDS metalyzer_app
+    COMMENT "Automated AOT Generation: Processing C Subset grammar spec"
+)
+
+# =========================================================================
+# MODULAR GENERATED OBJECT ARCHIVE LIBRARIES (Isolating namespaces)
+# =========================================================================
+# Enforced critical cross-target dependencies to serialize parallel graph steps
+add_library(gen_lexer_calc_lib_bench STATIC ${CALC_GEN_SRC})
+add_dependencies(gen_lexer_calc_lib_bench metalyzer_app)
+target_compile_definitions(gen_lexer_calc_lib_bench PRIVATE main=calc_lexer_main)
+target_include_directories(gen_lexer_calc_lib_bench PUBLIC "${GEN_ROOT}/calculator/generated_lexer")
+
+add_library(gen_lexer_json_lib_bench STATIC ${JSON_GEN_SRC})
+add_dependencies(gen_lexer_json_lib_bench metalyzer_app)
+target_compile_definitions(gen_lexer_json_lib_bench PRIVATE main=json_lexer_main)
+target_include_directories(gen_lexer_json_lib_bench PUBLIC "${GEN_ROOT}/json_core/generated_lexer")
+
+add_library(gen_lexer_csub_lib_bench STATIC ${CSUB_GEN_SRC})
+add_dependencies(gen_lexer_csub_lib_bench metalyzer_app)
+target_compile_definitions(gen_lexer_csub_lib_bench PRIVATE main=csub_lexer_main)
+target_include_directories(gen_lexer_csub_lib_bench PUBLIC "${GEN_ROOT}/c_subset/generated_lexer")
+
+if(NOT MSVC)
+    target_compile_options(gen_lexer_calc_lib_bench PRIVATE -O3 -march=native)
+    target_compile_options(gen_lexer_json_lib_bench PRIVATE -O3 -march=native)
+    target_compile_options(gen_lexer_csub_lib_bench PRIVATE -O3 -march=native)
+endif()
+
+# =========================================================================
+# DECOUPLED BENCHMARKING ENGINE: 9-POINT CONCURRENT SUITE
+# =========================================================================
+add_executable(metalyzer_bench 
+    benchmarks/metalyzer_bench_throughput.cpp
+    benchmarks/metalyzer_bench_calculator.cpp
+    benchmarks/metalyzer_bench_json.cpp
+    benchmarks/metalyzer_bench_c_subset.cpp
+)
+
+# Link cleanly against all 3 isolated unique benchmark library targets
+target_link_libraries(metalyzer_bench PRIVATE 
+    gen_lexer_calc_lib_bench
+    gen_lexer_json_lib_bench
+    gen_lexer_csub_lib_bench
+)
+
+# Bind individual target translation units to their respective header folder paths
+set_source_files_properties(benchmarks/metalyzer_bench_calculator.cpp PROPERTIES
+    COMPILE_FLAGS "-I${GEN_ROOT}/calculator/generated_lexer"
+)
+set_source_files_properties(benchmarks/metalyzer_bench_json.cpp PROPERTIES
+    COMPILE_FLAGS "-I${GEN_ROOT}/json_core/generated_lexer"
+)
+set_source_files_properties(benchmarks/metalyzer_bench_c_subset.cpp PROPERTIES
+    COMPILE_FLAGS "-I${GEN_ROOT}/c_subset/generated_lexer"
+)
+
+target_include_directories(metalyzer_bench PRIVATE benchmarks)
+
+if(NOT MSVC)
+    target_compile_options(metalyzer_bench PRIVATE -O3 -march=native)
+endif()
 
 # =========================================================================
 # AUTOMATED TESTING SUITE & INTEGRATION PASSES
@@ -60,97 +137,93 @@ include(CTest)
 enable_testing()
 
 if(BUILD_TESTING)
-    # Assert that the generation binary runs and outputs the profile JSON
     add_test(NAME ProfileJsonExists
         COMMAND metalyzer_app ${CMAKE_CURRENT_SOURCE_DIR}/tests/specs/calculator.mz
     )
 
-    # Cross-Platform Validation Script: Native check pointing directly to your cmake/ folder
     add_test(NAME AssertProfileCacheTier
-        COMMAND ${CMAKE_COMMAND} -DPROFILE_DIR=${CMAKE_CURRENT_BINARY_DIR}/generated_lexer -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyProfile.cmake"
+        COMMAND ${CMAKE_COMMAND} -DPROFILE_DIR=${GEN_ROOT}/calculator -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyProfile.cmake"
     )
 
-    # Strict Ordering Constraint: Ensure the validation pass never evaluates before the file has been emitted
     set_tests_properties(AssertProfileCacheTier PROPERTIES 
         DEPENDS ProfileJsonExists
     )
 
-    # Process localized unit tests directory tree
     add_subdirectory(tests)
-endif()
 
-# =========================================================================
-# MODULAR BENCHMARKING ENGINE & TEST AUTOMATION
-# =========================================================================
-
-# Define a CMake library target wrapping the generated source code outputs
-add_library(generated_lexer_lib STATIC 
-    ${GENERATED_LEXER_SRC}
-)
-
-# Prevent duplicate main definition by renaming it during library compilation
-target_compile_definitions(generated_lexer_lib PRIVATE main=generated_lexer_main)
-
-if(NOT MSVC)
-    target_compile_options(generated_lexer_lib PRIVATE -O3 -march=native)
-endif()
-
-# Bind lookup directories for library compilation and client include passes
-target_include_directories(generated_lexer_lib PUBLIC 
-    ${CMAKE_CURRENT_BINARY_DIR}/generated_lexer
-)
-
-# Register the throughput benchmark binary executable
-add_executable(metalyzer_bench 
-    benchmarks/bench_throughput.cpp
-)
-
-# Link cleanly against the modular generated library target module
-target_link_libraries(metalyzer_bench PRIVATE 
-    generated_lexer_lib
-)
-
-# Maximize compilation runtime execution optimization settings
-if(NOT MSVC)
-    target_compile_options(metalyzer_bench PRIVATE -O3 -march=native)
-endif()
-
-# Register the automated tracking validation test under the CTest profile harness
-if(BUILD_TESTING)
-    add_test(NAME ThroughputBenchmark
+    add_test(NAME 9PointThroughputBenchmark
         COMMAND metalyzer_bench
     )
 endif()
 
 # =========================================================================
-# INDUSTRY BASELINE TARGET: FLEX COMPARISON SANDBOX
+# INDUSTRY BASELINE TARGET: FLEX MULTI-GRAMMAR COMPARISON SANDBOX
 # =========================================================================
 find_package(FLEX REQUIRED)
 
 if(FLEX_FOUND)
     set(FLEX_COMPARE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/flex_comparison")
-    set(FLEX_OUTPUT_CPP "${CMAKE_CURRENT_BINARY_DIR}/generated_flex/lex.yy.cc")
+    set(FLEX_OUT_ROOT   "${CMAKE_CURRENT_BINARY_DIR}/generated_flex")
     
-    # Custom step to command Flex to generate the C++ state machine code array
+    set(FLEX_CALC_CPP "${FLEX_OUT_ROOT}/calculator/lex.yy.cc")
+    set(FLEX_JSON_CPP "${FLEX_OUT_ROOT}/json_core/lex.yy.cc")
+    set(FLEX_CSUB_CPP "${FLEX_OUT_ROOT}/c_subset/lex.yy.cc")
+    
+    # 1. Flex Calculator engine compilation step (Using CalcPrefix)
     add_custom_command(
-        OUTPUT ${FLEX_OUTPUT_CPP}
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/generated_flex"
-        COMMAND ${FLEX_EXECUTABLE} -o ${FLEX_OUTPUT_CPP} ${FLEX_COMPARE_DIR}/calculator.l
+        OUTPUT ${FLEX_CALC_CPP}
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${FLEX_OUT_ROOT}/calculator"
+        COMMAND ${FLEX_EXECUTABLE} -PCalcSpec -o ${FLEX_CALC_CPP} ${FLEX_COMPARE_DIR}/calculator.l
         DEPENDS ${FLEX_COMPARE_DIR}/calculator.l
-        COMMENT "Generating industry-standard Flex scanner implementation source..."
+        COMMENT "Generating industry-standard Flex calculator scanner..."
     )
     
-    # Compile the standalone Flex high-resolution hardware execution clock binary
-    add_executable(bench_flex 
-        benchmarks/flex_comparison/bench_flex.cpp
-        ${FLEX_OUTPUT_CPP}
+    # 2. Flex JSON Core engine compilation step (Using JsonPrefix)
+    add_custom_command(
+        OUTPUT ${FLEX_JSON_CPP}
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${FLEX_OUT_ROOT}/json_core"
+        COMMAND ${FLEX_EXECUTABLE} -PJsonSpec -o ${FLEX_JSON_CPP} ${FLEX_COMPARE_DIR}/json_core.l
+        DEPENDS ${FLEX_COMPARE_DIR}/json_core.l
+        COMMENT "Generating industry-standard Flex JSON scanner..."
+    )
+
+    # 3. Flex C Subset engine compilation step (Using CSubPrefix)
+    add_custom_command(
+        OUTPUT ${FLEX_CSUB_CPP}
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${FLEX_OUT_ROOT}/c_subset"
+        COMMAND ${FLEX_EXECUTABLE} -PCSubSpec -o ${FLEX_CSUB_CPP} ${FLEX_COMPARE_DIR}/c_subset.l
+        DEPENDS ${FLEX_COMPARE_DIR}/c_subset.l
+        COMMENT "Generating industry-standard Flex C Subset scanner..."
     )
     
-    target_include_directories(bench_flex PRIVATE 
+    # Register the split multi-translation framework baseline binary
+    add_executable(flex_bench
+        benchmarks/flex_comparison/flex_bench_throughput.cpp
+        benchmarks/flex_comparison/flex_bench_calculator.cpp
+        benchmarks/flex_comparison/flex_bench_json.cpp
+        benchmarks/flex_comparison/flex_bench_c_subset.cpp
+        ${FLEX_CALC_CPP}
+        ${FLEX_JSON_CPP}
+        ${FLEX_CSUB_CPP}
+    )
+    
+    # Bind translation unit lookups securely to prevent conflicting macro injections
+    set_source_files_properties(benchmarks/flex_comparison/flex_bench_calculator.cpp PROPERTIES COMPILE_FLAGS "-I${FLEX_OUT_ROOT}/calculator")
+    set_source_files_properties(benchmarks/flex_comparison/flex_bench_json.cpp PROPERTIES COMPILE_FLAGS "-I${FLEX_OUT_ROOT}/json_core")
+    set_source_files_properties(benchmarks/flex_comparison/flex_bench_c_subset.cpp PROPERTIES COMPILE_FLAGS "-I${FLEX_OUT_ROOT}/c_subset")
+
+    target_include_directories(flex_bench PRIVATE 
+        benchmarks 
         ${FLEX_COMPARE_DIR}
     )
     
     if(NOT MSVC)
-        target_compile_options(bench_flex PRIVATE -O3 -march=native)
+        target_compile_options(flex_bench PRIVATE -O3 -march=native)
+    endif()
+
+    if(BUILD_TESTING)
+        add_test(NAME FlexIndustryBaselineBenchmark
+            COMMAND flex_bench
+        )
     endif()
 endif()

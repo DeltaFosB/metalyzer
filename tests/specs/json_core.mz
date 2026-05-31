@@ -31,7 +31,6 @@ true       { return (int)JsonToken::KW_TRUE; }
 false      { return (int)JsonToken::KW_FALSE; }
 null       { return (int)JsonToken::KW_NULL; }
 
-/* Expanded string rule: captures printable ASCII, spaces, and escaped sequences like \\ or \" */
 \"([a-zA-Z0-9[:space:]!#-\[\]-~]|\\[\"\\/bfnrt])*\" { return (int)JsonToken::STRING_LIT; }
 
 %%

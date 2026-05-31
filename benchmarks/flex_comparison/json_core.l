@@ -18,9 +18,11 @@ enum class JsonToken {
     STRING_LIT = 10
 };
 
-int current_line = 1;
-int current_col = 1;
-int token_start_col = 1;
+namespace {
+    int current_line = 1;
+    int current_col = 1;
+    int token_start_col = 1;
+}
 
 #define YY_USER_ACTION { \
     token_start_col = current_col; \
@@ -44,7 +46,6 @@ int token_start_col = 1;
 "false"     { return (int)JsonToken::KW_FALSE; }
 "null"      { return (int)JsonToken::KW_NULL; }
 
-/* Flex-compatible interpretation of the expanded string literal rule including escape match configurations */
 \"([^\"\\\n]|\\[\"\\/bfnrt])*\" { return (int)JsonToken::STRING_LIT; }
 
 [ \t\r]     {
@@ -54,7 +55,6 @@ int token_start_col = 1;
             }
 \n          { current_line++; current_col = 1; }
 
-/* Continuous error fallback catch-all */
 .           { return (int)JsonToken::TOK_ERROR; }
 
 %%

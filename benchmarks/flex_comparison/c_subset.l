@@ -28,9 +28,11 @@ enum class CToken {
     SEMICOLON, COMMA, COLON
 };
 
-int current_line = 1;
-int current_col = 1;
-int token_start_col = 1;
+namespace {
+    int current_line = 1;
+    int current_col = 1;
+    int token_start_col = 1;
+}
 
 #define YY_USER_ACTION { \
     token_start_col = current_col; \
