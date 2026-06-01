@@ -7,7 +7,6 @@
 #include <mutex>
 #include <numeric>
 #include <sstream>
-#include <streambuf>
 #include <string>
 #include <vector>
 
@@ -54,15 +53,6 @@ extern std::mutex console_mutex;
 extern std::mutex results_mutex;
 extern int global_active_threads;
 extern std::vector<ThreadResult> final_json_records;
-
-class ZeroCopyReadOnlyBuf : public std::streambuf {
-public:
-  ZeroCopyReadOnlyBuf(const char *base, size_t size) {
-    char *p = const_cast<char *>(base);
-    setg(p, p, p + size);
-  }
-  size_t get_pos() const { return gptr() - eback(); }
-};
 
 inline void flush_hardware_caches(std::vector<char> &eviction_buffer) {
   volatile char *data = eviction_buffer.data();

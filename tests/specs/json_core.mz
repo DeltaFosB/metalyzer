@@ -38,18 +38,21 @@ null       { return (int)JsonToken::KW_NULL; }
 int main() {
     using namespace user_code;
 
-    // Instantiate with telemetry explicitly deactivated to isolate throughput speed
+    // 1. Pass the standard input stream directly into the chunk-swapping engine.
+    // This avoids blocking the execution environment while maintaining our zero-copy pointer speeds.
     MyLexer lexer(std::cin, false);
     std::string lexeme;
     
+    // 2. Drive the parsing engine via the sliding buffer window state check
     while (lexer.hasMore()) {
         int tok = lexer.nextToken(lexeme);
         
-        if (tok == (int)JsonToken::TOK_EOF) {
-            break;
+        // 3. Match against the template core return codes mapped to enum boundaries
+        if (tok == -1 || tok == static_cast<int>(JsonToken::TOK_EOF)) {
+            break; // Clean exit on true stream termination
         }
         
-        if (tok == (int)JsonToken::TOK_ERROR) {
+        if (tok == -2 || tok == static_cast<int>(JsonToken::TOK_ERROR)) {
             // Log the error coordinate metrics but continue scanning to pull the full payload through
             std::cout << "Lexical Error | Lexeme: " << lexeme 
                       << " | Line: " << lexer.getLine() 

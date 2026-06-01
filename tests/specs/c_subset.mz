@@ -109,18 +109,21 @@ while       { return (int)CToken::KW_WHILE; }
 int main() {
     using namespace user_code;
 
-    // Instantiate with runtime telemetry deactivated to keep execution loops pure
+    // 1. Pass the standard input stream directly to the chunk-swapping engine.
+    // This allows live tracking without blocking or slurping everything into RAM first.
     MyLexer lexer(std::cin, false);
     std::string lexeme;
     
+    // 2. Continuous token scanning loop driven by the updated stream checking rules
     while (lexer.hasMore()) {
         int tok = lexer.nextToken(lexeme);
         
-        if (tok == (int)CToken::TOK_EOF) {
+        // Match casting against updated token boundary rules
+        if (tok == -1) { // Clean EOF
             break;
         }
         
-        if (tok == (int)CToken::TOK_ERROR) {
+        if (tok == -2) { // Lexical Fault Segment Isolated
             // Track errors but do not disrupt continuous streaming metrics
             std::cout << "Lexical Error | Lexeme: " << lexeme 
                       << " | Line: " << lexer.getLine() 

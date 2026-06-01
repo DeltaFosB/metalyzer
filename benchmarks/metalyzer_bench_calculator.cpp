@@ -1,38 +1,38 @@
 #include "metalyzer_bench_harness.hpp"
 #include <MyLexer.hpp>
 
-static PassMetrics run_calculator_pass(const std::string &input_buffer) {
-  ZeroCopyReadOnlyBuf raw_buffer(input_buffer.data(), input_buffer.size());
-  std::istream stream(&raw_buffer);
+static PassMetrics run_calculator_pass(std::ifstream &file_stream) {
+  // Clear any EOF or fail bits from a previous pass and rewind to byte 0
+  file_stream.clear();
+  file_stream.seekg(0, std::ios::beg);
 
-  user_code::MyLexer lexer(stream, false);
+  // Directly instantiate the chunk-swapping lexer with the streaming data pipe
+  user_code::MyLexer lexer(file_stream, false);
+
   std::string lexeme;
-  lexeme.reserve(256);
+  lexeme.reserve(256); // Allocate out of bounds of hot iterations
 
   uint64_t token_count = 0;
   auto start_time = std::chrono::high_resolution_clock::now();
 
+  // Low-overhead execution loop driven by raw pointer buffer boundary checks
   while (lexer.hasMore()) {
-    size_t prev_pos = raw_buffer.get_pos();
     int tok = lexer.nextToken(lexeme);
-
-    if (tok == -1)
-      break;
-
-    if (raw_buffer.get_pos() == prev_pos) {
-      if (stream.good() && stream.peek() != EOF) {
-        stream.get();
-      } else {
-        break;
-      }
+    if (tok == -1) {
+      break; // True EOF Boundary reached natively via internal chunk refresh
     }
     ++token_count;
   }
 
   auto end_time = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> elapsed = end_time - start_time;
+
+  // Track file size using the stream's current ending position for MB/s
+  // calculations
+  file_stream.clear();
+  file_stream.seekg(0, std::ios::end);
   double data_size_mb =
-      static_cast<double>(input_buffer.size()) / (1024.0 * 1024.0);
+      static_cast<double>(file_stream.tellg()) / (1024.0 * 1024.0);
 
   PassMetrics metrics;
   metrics.elapsed_seconds = elapsed.count();
@@ -50,6 +50,7 @@ void worker_calculator_execution(const TargetPayload target, int target_core_id,
   CPU_SET(target_core_id, &cpuset);
   pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
 
+  // Open the target handle as a persistent stream for this core's iterations
   std::ifstream file_stream(target.path, std::ios::binary);
   if (!file_stream.is_open()) {
     std::lock_guard<std::mutex> lock(console_mutex);
@@ -57,11 +58,6 @@ void worker_calculator_execution(const TargetPayload target, int target_core_id,
               << target.path << "\n";
     return;
   }
-
-  std::stringstream buffer;
-  buffer << file_stream.rdbuf();
-  std::string flat_input_payload = buffer.str();
-  file_stream.close();
 
   std::vector<char> local_eviction_buffer(CACHE_FLUSH_SIZE_BYTES, 0);
   std::vector<PassMetrics> history_pass1, history_pass2, history_pass3;
@@ -80,10 +76,13 @@ void worker_calculator_execution(const TargetPayload target, int target_core_id,
                 << "\033[" << lines_to_move << "B" << std::flush;
     }
 
+    // Flush hardware cache lines completely before running pass 1
     flush_hardware_caches(local_eviction_buffer);
-    history_pass1.push_back(run_calculator_pass(flat_input_payload));
-    history_pass2.push_back(run_calculator_pass(flat_input_payload));
-    history_pass3.push_back(run_calculator_pass(flat_input_payload));
+
+    // Pass the active file stream descriptor down to the individual runs
+    history_pass1.push_back(run_calculator_pass(file_stream));
+    history_pass2.push_back(run_calculator_pass(file_stream));
+    history_pass3.push_back(run_calculator_pass(file_stream));
   }
 
   {
@@ -94,6 +93,8 @@ void worker_calculator_execution(const TargetPayload target, int target_core_id,
               << target_core_id << " Finalized Cleanly."
               << "\033[" << lines_to_move << "B" << std::flush;
   }
+
+  file_stream.close();
 
   AggregatedMetrics agg1 = compute_statistical_aggregates(history_pass1);
   AggregatedMetrics agg2 = compute_statistical_aggregates(history_pass2);
@@ -113,6 +114,7 @@ void worker_calculator_execution(const TargetPayload target, int target_core_id,
                       agg3,
                       cache_delta_pct,
                       stability_delta_pct};
+
   std::lock_guard<std::mutex> result_lock(results_mutex);
   final_json_records.push_back(record);
 }

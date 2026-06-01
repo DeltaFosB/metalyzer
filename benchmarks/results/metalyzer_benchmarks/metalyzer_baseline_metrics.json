@@ -1,0 +1,222 @@
+{
+  "engine": "Metalyzer",
+  "iterations": 100,
+  "profiles": {
+    "Calculator_SPARSE_SPACES": {
+      "pinned_core": 2,
+      "pass1_cold": {
+        "mean_seconds": 0.2583,
+        "scanned_tokens": 480000,
+        "mean_mb_per_sec": 39.8244,
+        "stddev_mb_per_sec": 0.651935,
+        "mean_tokens_per_sec": 1.85878e+06
+      },
+      "pass2_warmed": {
+        "mean_seconds": 0.258593,
+        "mean_mb_per_sec": 39.7771,
+        "stddev_mb_per_sec": 0.570039,
+        "mean_tokens_per_sec": 1.85657e+06
+      },
+      "pass3_stable": {
+        "mean_seconds": 0.258653,
+        "mean_mb_per_sec": 39.7678,
+        "stddev_mb_per_sec": 0.569906,
+        "mean_tokens_per_sec": 1.85614e+06
+      },
+      "cache_warmup_acceleration_delta_pct": -0.118902,
+      "steady_state_stability_variance_delta_pct": -0.0232681
+    },
+    "Calculator_DENSE_CODE": {
+      "pinned_core": 0,
+      "pass1_cold": {
+        "mean_seconds": 0.687232,
+        "scanned_tokens": 4628500,
+        "mean_mb_per_sec": 14.5787,
+        "stddev_mb_per_sec": 0.547831,
+        "mean_tokens_per_sec": 6.7449e+06
+      },
+      "pass2_warmed": {
+        "mean_seconds": 0.687618,
+        "mean_mb_per_sec": 14.5694,
+        "stddev_mb_per_sec": 0.533313,
+        "mean_tokens_per_sec": 6.74062e+06
+      },
+      "pass3_stable": {
+        "mean_seconds": 0.687939,
+        "mean_mb_per_sec": 14.5628,
+        "stddev_mb_per_sec": 0.534873,
+        "mean_tokens_per_sec": 6.73755e+06
+      },
+      "cache_warmup_acceleration_delta_pct": -0.0634577,
+      "steady_state_stability_variance_delta_pct": -0.0455584
+    },
+    "Calculator_ERROR_CHURN": {
+      "pinned_core": 4,
+      "pass1_cold": {
+        "mean_seconds": 0.699677,
+        "scanned_tokens": 5342814,
+        "mean_mb_per_sec": 14.4432,
+        "stddev_mb_per_sec": 1.81522,
+        "mean_tokens_per_sec": 7.70816e+06
+      },
+      "pass2_warmed": {
+        "mean_seconds": 0.696603,
+        "mean_mb_per_sec": 14.5606,
+        "stddev_mb_per_sec": 2.16993,
+        "mean_tokens_per_sec": 7.77081e+06
+      },
+      "pass3_stable": {
+        "mean_seconds": 0.697016,
+        "mean_mb_per_sec": 14.5538,
+        "stddev_mb_per_sec": 2.17876,
+        "mean_tokens_per_sec": 7.76719e+06
+      },
+      "cache_warmup_acceleration_delta_pct": 0.812788,
+      "steady_state_stability_variance_delta_pct": -0.0465847
+    },
+    "JSON_Core_SPARSE_SPACES": {
+      "pinned_core": 2,
+      "pass1_cold": {
+        "mean_seconds": 0.240644,
+        "scanned_tokens": 190000,
+        "mean_mb_per_sec": 42.1879,
+        "stddev_mb_per_sec": 1.00359,
+        "mean_tokens_per_sec": 790081
+      },
+      "pass2_warmed": {
+        "mean_seconds": 0.239904,
+        "mean_mb_per_sec": 42.2905,
+        "stddev_mb_per_sec": 0.198649,
+        "mean_tokens_per_sec": 792003
+      },
+      "pass3_stable": {
+        "mean_seconds": 0.24003,
+        "mean_mb_per_sec": 42.2688,
+        "stddev_mb_per_sec": 0.251384,
+        "mean_tokens_per_sec": 791596
+      },
+      "cache_warmup_acceleration_delta_pct": 0.243232,
+      "steady_state_stability_variance_delta_pct": -0.0513952
+    },
+    "JSON_Core_ERROR_CHURN": {
+      "pinned_core": 4,
+      "pass1_cold": {
+        "mean_seconds": 0.59899,
+        "scanned_tokens": 4370038,
+        "mean_mb_per_sec": 16.8694,
+        "stddev_mb_per_sec": 0.634954,
+        "mean_tokens_per_sec": 7.30643e+06
+      },
+      "pass2_warmed": {
+        "mean_seconds": 0.599457,
+        "mean_mb_per_sec": 16.8559,
+        "stddev_mb_per_sec": 0.62905,
+        "mean_tokens_per_sec": 7.30055e+06
+      },
+      "pass3_stable": {
+        "mean_seconds": 0.599167,
+        "mean_mb_per_sec": 16.8636,
+        "stddev_mb_per_sec": 0.623915,
+        "mean_tokens_per_sec": 7.30391e+06
+      },
+      "cache_warmup_acceleration_delta_pct": -0.0804792,
+      "steady_state_stability_variance_delta_pct": 0.0459834
+    },
+    "JSON_Core_DENSE_CODE": {
+      "pinned_core": 0,
+      "pass1_cold": {
+        "mean_seconds": 0.631459,
+        "scanned_tokens": 5566316,
+        "mean_mb_per_sec": 16.4687,
+        "stddev_mb_per_sec": 3.93676,
+        "mean_tokens_per_sec": 9.13221e+06
+      },
+      "pass2_warmed": {
+        "mean_seconds": 0.631616,
+        "mean_mb_per_sec": 16.4619,
+        "stddev_mb_per_sec": 3.92461,
+        "mean_tokens_per_sec": 9.12845e+06
+      },
+      "pass3_stable": {
+        "mean_seconds": 0.630869,
+        "mean_mb_per_sec": 16.4873,
+        "stddev_mb_per_sec": 3.9334,
+        "mean_tokens_per_sec": 9.14252e+06
+      },
+      "cache_warmup_acceleration_delta_pct": -0.0412455,
+      "steady_state_stability_variance_delta_pct": 0.154189
+    },
+    "C_Subset_SPARSE_SPACES": {
+      "pinned_core": 2,
+      "pass1_cold": {
+        "mean_seconds": 0.247615,
+        "scanned_tokens": 842071,
+        "mean_mb_per_sec": 41.8411,
+        "stddev_mb_per_sec": 0.308591,
+        "mean_tokens_per_sec": 3.40091e+06
+      },
+      "pass2_warmed": {
+        "mean_seconds": 0.247891,
+        "mean_mb_per_sec": 41.794,
+        "stddev_mb_per_sec": 0.262667,
+        "mean_tokens_per_sec": 3.39707e+06
+      },
+      "pass3_stable": {
+        "mean_seconds": 0.247868,
+        "mean_mb_per_sec": 41.7978,
+        "stddev_mb_per_sec": 0.251307,
+        "mean_tokens_per_sec": 3.39738e+06
+      },
+      "cache_warmup_acceleration_delta_pct": -0.112797,
+      "steady_state_stability_variance_delta_pct": 0.00918925
+    },
+    "C_Subset_ERROR_CHURN": {
+      "pinned_core": 4,
+      "pass1_cold": {
+        "mean_seconds": 0.593844,
+        "scanned_tokens": 4207941,
+        "mean_mb_per_sec": 17.0345,
+        "stddev_mb_per_sec": 0.748849,
+        "mean_tokens_per_sec": 7.09991e+06
+      },
+      "pass2_warmed": {
+        "mean_seconds": 0.593937,
+        "mean_mb_per_sec": 17.0323,
+        "stddev_mb_per_sec": 0.754536,
+        "mean_tokens_per_sec": 7.09901e+06
+      },
+      "pass3_stable": {
+        "mean_seconds": 0.593651,
+        "mean_mb_per_sec": 17.0397,
+        "stddev_mb_per_sec": 0.745129,
+        "mean_tokens_per_sec": 7.10208e+06
+      },
+      "cache_warmup_acceleration_delta_pct": -0.0126918,
+      "steady_state_stability_variance_delta_pct": 0.0432676
+    },
+    "C_Subset_DENSE_CODE": {
+      "pinned_core": 0,
+      "pass1_cold": {
+        "mean_seconds": 0.60428,
+        "scanned_tokens": 4542815,
+        "mean_mb_per_sec": 16.7265,
+        "stddev_mb_per_sec": 2.08317,
+        "mean_tokens_per_sec": 7.59485e+06
+      },
+      "pass2_warmed": {
+        "mean_seconds": 0.603796,
+        "mean_mb_per_sec": 16.7651,
+        "stddev_mb_per_sec": 2.27495,
+        "mean_tokens_per_sec": 7.61237e+06
+      },
+      "pass3_stable": {
+        "mean_seconds": 0.603595,
+        "mean_mb_per_sec": 16.7701,
+        "stddev_mb_per_sec": 2.2724,
+        "mean_tokens_per_sec": 7.61463e+06
+      },
+      "cache_warmup_acceleration_delta_pct": 0.230638,
+      "steady_state_stability_variance_delta_pct": 0.0297303
+    }
+  }
+}

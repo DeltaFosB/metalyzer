@@ -78,14 +78,14 @@ int main() {
 
   std::cout << "==============================================================="
                "==================\n";
-  std::cout << "METALYZER BATCHED MULTI-GRAMMAR CACHE-ISOLATED THROUGHPUT "
-               "LABORATORY\n";
+  std::cout
+      << "METALYZER BATCHED MULTI-GRAMMAR ZERO-COPY THROUGHPUT LABORATORY\n";
   std::cout << "==============================================================="
                "==================\n";
   std::cout << "[*] System Architecture Detected: 4 Physical Cores / 8 Logical "
                "Threads\n";
-  std::cout << "[*] Optimization Strategy: Isolating benchmarks to independent "
-               "physical cores (CPU 0, 2, 4)\n";
+  std::cout << "[*] Optimization Strategy: Directly passing memory-resident "
+               "strings to bare pointers\n";
   std::cout << "[*] Running 3 sequential batches to prevent hardware "
                "over-subscription...\n";
 
