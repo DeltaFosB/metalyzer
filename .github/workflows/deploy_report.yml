@@ -39,15 +39,8 @@ jobs:
     - name: Compile Metalyzer (Release Mode)
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release ..
+        cmake -DCMAKE_BUILD_TYPE=Release -DUPDATE_SNAPSHOTS=OFF ..
         make -j$(nproc)
-
-    - name: Execute Benchmarking Sandbox
-      run: |
-        cd build
-        # Replace with your actual execution paths that output the JSON files
-        # ./benchmarks/metalyzer_bench_throughput
-        # ./benchmarks/flex_comparison/flex_bench_throughput
 
     - name: Generate Quarto Specification (.qmd)
       run: python tools/generate_reports.py --output performance_report.qmd
