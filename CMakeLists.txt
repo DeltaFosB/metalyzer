@@ -210,12 +210,19 @@ include(CTest)
 enable_testing()
 
 if(BUILD_TESTING)
+    # 1. Run the app target to generate the profiling data
     add_test(NAME ProfileJsonExists
         COMMAND metalyzer_app ${CMAKE_CURRENT_SOURCE_DIR}/tests/specs/calculator.mz
     )
+    
+    # Secure the execution context directory to drop the artifact inside the grammar sandbox
+    set_tests_properties(ProfileJsonExists PROPERTIES
+        WORKING_DIRECTORY "${GEN_ROOT}/calculator"
+    )
 
+    # 2. Verify the profile, pointing explicitly to the generated_lexer subfolder
     add_test(NAME AssertProfileCacheTier
-        COMMAND ${CMAKE_COMMAND} -DPROFILE_DIR=${GEN_ROOT}/calculator -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyProfile.cmake"
+        COMMAND ${CMAKE_COMMAND} -DPROFILE_DIR=${GEN_ROOT}/calculator/generated_lexer -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyProfile.cmake"
     )
 
     set_tests_properties(AssertProfileCacheTier PROPERTIES 
