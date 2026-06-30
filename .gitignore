@@ -19,3 +19,9 @@ undo/
 # --- OS Specific ---
 .DS_Store
 Thumbs.db
+
+# Metalyzer Generated Post-Build Artifacts
+performance_report.qmd
+performance_report.html
+performance_report.pdf
+.quarto/

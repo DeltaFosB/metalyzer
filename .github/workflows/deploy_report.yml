@@ -1,0 +1,75 @@
+name: Metalyzer Microarchitectural Pipeline
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  benchmark-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up C++ Toolchain & Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake flex
+
+    - name: Set up Python Environment
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install Python Data Science Packages
+      run: |
+        python -m pip install --upgrade pip
+        pip install matplotlib numpy
+
+    - name: Set up Quarto CLI
+      uses: quarto-dev/quarto-actions/setup@v2
+
+    - name: Install TinyTeX (for PDF Compilation)
+      run: quarto install tool tinytex --update-path
+
+    - name: Compile Metalyzer (Release Mode)
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+        make -j$(nproc)
+
+    - name: Execute Benchmarking Sandbox
+      run: |
+        cd build
+        # Replace with your actual execution paths that output the JSON files
+        # ./benchmarks/metalyzer_bench_throughput
+        # ./benchmarks/flex_comparison/flex_bench_throughput
+
+    - name: Generate Quarto Specification (.qmd)
+      run: python tools/generate_reports.py --output performance_report.qmd
+
+    - name: Compile Multi-Target Assets (HTML & PDF)
+      run: |
+        quarto render performance_report.qmd --to html
+        quarto render performance_report.qmd --to pdf
+
+    - name: Package Web Dashboard
+      run: |
+        mkdir -p public
+        mv performance_report.html public/index.html
+
+    - name: Deploy Dashboard to GitHub Pages
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        folder: public
+        branch: gh-pages
+
+    - name: Archive PDF Publication as Workflow Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Metalyzer-Microarchitectural-Report
+        path: performance_report.pdf
