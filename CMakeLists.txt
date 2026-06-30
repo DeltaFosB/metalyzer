@@ -131,37 +131,17 @@ if(NOT MSVC)
 endif()
 
 # =========================================================================
-# AUTOMATED TESTING SUITE & INTEGRATION PASSES
-# =========================================================================
-include(CTest)
-enable_testing()
-
-if(BUILD_TESTING)
-    add_test(NAME ProfileJsonExists
-        COMMAND metalyzer_app ${CMAKE_CURRENT_SOURCE_DIR}/tests/specs/calculator.mz
-    )
-
-    add_test(NAME AssertProfileCacheTier
-        COMMAND ${CMAKE_COMMAND} -DPROFILE_DIR=${GEN_ROOT}/calculator -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyProfile.cmake"
-    )
-
-    set_tests_properties(AssertProfileCacheTier PROPERTIES 
-        DEPENDS ProfileJsonExists
-    )
-
-    add_subdirectory(tests)
-
-    add_test(NAME 9PointThroughputBenchmark
-        COMMAND metalyzer_bench
-    )
-endif()
-
-# =========================================================================
 # INDUSTRY BASELINE TARGET: FLEX MULTI-GRAMMAR COMPARISON SANDBOX
 # =========================================================================
 find_package(FLEX REQUIRED)
 
 if(FLEX_FOUND)
+    # Explicitly locate system Include directory for FlexLexer.h to patch missing compiler lookup paths
+    find_path(FLEX_INCLUDE_DIR FlexLexer.h)
+    if(NOT FLEX_INCLUDE_DIR)
+        message(FATAL_ERROR "Could not locate required system header: FlexLexer.h")
+    endif()
+
     set(FLEX_COMPARE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/flex_comparison")
     set(FLEX_OUT_ROOT   "${CMAKE_CURRENT_BINARY_DIR}/generated_flex")
     
@@ -215,13 +195,40 @@ if(FLEX_FOUND)
     target_include_directories(flex_bench PRIVATE 
         benchmarks 
         ${FLEX_COMPARE_DIR}
+        ${FLEX_INCLUDE_DIR}
     )
     
     if(NOT MSVC)
         target_compile_options(flex_bench PRIVATE -O3 -march=native)
     endif()
+endif()
 
-    if(BUILD_TESTING)
+# =========================================================================
+# AUTOMATED TESTING SUITE & INTEGRATION PASSES
+# =========================================================================
+include(CTest)
+enable_testing()
+
+if(BUILD_TESTING)
+    add_test(NAME ProfileJsonExists
+        COMMAND metalyzer_app ${CMAKE_CURRENT_SOURCE_DIR}/tests/specs/calculator.mz
+    )
+
+    add_test(NAME AssertProfileCacheTier
+        COMMAND ${CMAKE_COMMAND} -DPROFILE_DIR=${GEN_ROOT}/calculator -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyProfile.cmake"
+    )
+
+    set_tests_properties(AssertProfileCacheTier PROPERTIES 
+        DEPENDS ProfileJsonExists
+    )
+
+    add_subdirectory(tests)
+
+    add_test(NAME 9PointThroughputBenchmark
+        COMMAND metalyzer_bench
+    )
+
+    if(FLEX_FOUND)
         add_test(NAME FlexIndustryBaselineBenchmark
             COMMAND flex_bench
         )

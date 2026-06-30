@@ -16,7 +16,7 @@ DFA Minimizer::minimize(const DFA &dfa, DFAContext &ctx) {
     if (nextPartitions.size() == partitions.size()) {
       break;
     }
-    partitions = nextPartitions;
+    partitions = std::move(nextPartitions);
   }
 
   return makeDFA(dfa, partitions, ctx);
@@ -42,8 +42,9 @@ std::vector<std::vector<DFAState *>> Minimizer::initPartitions(const DFA &dfa) {
   }
 
   std::vector<std::vector<DFAState *>> partitions;
-  for (auto const &[id, group] : ruleGroups) {
-    partitions.push_back(group);
+  partitions.reserve(ruleGroups.size());
+  for (auto &[id, group] : ruleGroups) {
+    partitions.push_back(std::move(group));
   }
 
   return partitions;
@@ -61,6 +62,7 @@ std::vector<std::vector<DFAState *>> Minimizer::refinePartitions(
   }
 
   std::vector<std::vector<DFAState *>> nextPartitions;
+  nextPartitions.reserve(partitions.size());
 
   for (const auto &partitionSet : partitions) {
     if (partitionSet.size() <= 1) {
@@ -70,14 +72,16 @@ std::vector<std::vector<DFAState *>> Minimizer::refinePartitions(
 
     std::vector<std::vector<DFAState *>> splitSets;
     if (splitSet(partitionSet, alphabet, stateToGroup, splitSets)) {
-      nextPartitions.insert(nextPartitions.end(), splitSets.begin(),
-                            splitSets.end());
+      for (auto &subgroup : splitSets) {
+        nextPartitions.push_back(std::move(subgroup));
+      }
     } else {
       nextPartitions.push_back(partitionSet);
     }
   }
   return nextPartitions;
 }
+
 bool Minimizer::splitSet(
     const std::vector<DFAState *> &currentGroup, const std::set<char> &alphabet,
     const std::unordered_map<int, int> &stateToGroup,
@@ -100,8 +104,9 @@ bool Minimizer::splitSet(
     }
 
     if (buckets.size() > 1) {
-      for (auto const &[id, subgroup] : buckets) {
-        outputSubGroups.push_back(subgroup);
+      outputSubGroups.reserve(buckets.size());
+      for (auto &[id, subgroup] : buckets) {
+        outputSubGroups.push_back(std::move(subgroup));
       }
       return true;
     }
@@ -115,6 +120,7 @@ DFA Minimizer::makeDFA(const DFA &originalDFA,
   DFA dfa;
   std::unordered_map<int, DFAState *> oldToNew;
   std::vector<DFAState *> newStates;
+  newStates.reserve(partitions.size());
 
   for (const auto &partition : partitions) {
     DFAState *newState = ctx.createState();
