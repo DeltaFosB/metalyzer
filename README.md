@@ -2,19 +2,20 @@
 
 Metalyzer is a dependency-free C++17 compiler frontend and lexical analyzer generator. Built entirely from scratch without relying on standard regex libraries, the project translates custom `.mz` specification files into highly optimized, standalone C++ lexer code.
 
-The engine implements foundational automata theory to eliminate runtime ambiguity, utilizing a compute-efficient pipeline to generate O(1) state-transition tables for high-performance tokenization.
+Engineered for small-to-medium grammars and Domain-Specific Languages (DSLs), Metalyzer implements foundational automata theory to eliminate runtime ambiguity. By serializing minimized state machines into dense, uncompressed 2D transition matrices and utilizing a custom 16KB Sliding Chunk Buffer, the engine guarantees O(1) state transitions and pure bare-metal pointer execution—achieving processing throughputs up to 284 MB/s and significantly outperforming industry-standard Flex in targeted workloads.
 
 ## Technical Highlights
 
-To achieve maximum performance and predictability, Metalyzer handles all regex compilation, graph reduction, and memory layout optimization internally.
+To achieve maximum performance and predictability, Metalyzer handles all regex compilation, graph reduction, memory layout optimization, and low-level I/O internally.
 
 | Component | Implementation | Engineering Benefit |
 | --- | --- | --- |
 | **Graph Compilation** | Thompson NFA + Power-Set DFA | Complete control over graph boundaries; zero external regex dependencies. |
 | **Conflict Resolution** | Algorithmic Priority Assignment | Mathematically guarantees the highest-priority rule wins (e.g., `if` vs `[a-z]+`). |
 | **State Optimization** | Equivalence-Class Partitioning | Strictly isolates partitions by Rule ID, minimizing footprint without destroying logic. |
-| **Runtime Matching** | Maximal Munch Algorithm | O(1) transitions per character with greedy stream rollback. |
-| **Memory Footprint** | 2D Transition Matrix Compression | Cache-friendly array layout; eliminates pointer-chasing during runtime tokenization. |
+| **Memory Footprint** | 2D Transition Matrix | L1 Data Cache-friendly array layout; eliminates pointer-chasing and unpacking overhead. |
+| **Stream I/O** | 16KB Sliding Chunk Buffer | Pushes heavy `std::istream` overhead out of the hot path via unformatted block-transfers. |
+| **Runtime Matching** | Maximal Munch Algorithm | O(1) transitions per character with immediate, zero-allocation stream rollback. |
 | **Action Injection** | Dynamic Template Code Emitter | Directly binds custom user action blocks into an optimized runtime execution switch. |
 
 ## Pipeline Architecture
@@ -48,17 +49,34 @@ Metalyzer converts human-readable regex into executable state machines using thr
 * **Power-Set Construction (DFA):** Resolves non-determinism. This stage implements **Algorithmic Priority Resolution**—if a string mathematically matches multiple rules, the engine resolves the conflict during graph conversion rather than at runtime.
 * **State Minimization:** Minimizes the DFA using equivalence-class partitioning while strictly protecting rule priority boundaries.
 
-### 2. Advanced Runtime Hardening
+### 2. Advanced Runtime Hardening & Microarchitectural Optimization
 
-The generated C++ code avoids dynamic backtracking graphs, utilizing an encapsulated class structure centered on a highly cache-friendly 2D transition matrix.
+The generated C++ code avoids dynamic backtracking graphs and heavy standard library abstractions. The execution driver is highly optimized for modern CPU instruction pipelines and L1 cache locality.
 
-* **Maximal Munch Rollback:** The runtime aggressively consumes characters until a dead-end is reached, then seamlessly rolls back the input stream via pointer reassignment to the last known accepting state.
-* **Precision Grid Tracking:** Integrates context-aware tracking directly into the stream skipper. It features terminal-grade tab-stop snapping math (`4 - ((currentCol - 1) % 4)`) and captures exact token start boundaries (`tokenStartCol`) to prevent location reporting drift.
-* **Deterministic Single-Byte Error Bounding:** When an invalid sequence is hit, the engine isolates the error to exactly one invalid character. It rolls back any subsequent over-read characters to preserve the integrity of upcoming token boundaries and yields a localized error state (`-2`).
+* **Zero-Copy Sliding Window:** Replaces per-character virtual stream calls with low-frequency, unformatted 16KB block transfers (`std::istream::read`). Token fragments that cross boundary lines are seamlessly shifted and re-anchored using `std::memmove`.
+* **Inline Whitespace Skipper:** Greedily consumes structural whitespace at hardware bus limits, bypassing the DFA loop entirely for sparse payloads.
+* **Maximal Munch Rollback:** The runtime aggressively consumes characters until a dead-end is reached, then seamlessly rolls back the input stream via bare pointer reassignment (`m_cursor = last_good_ptr`) to the last known accepting state.
+* **Precision Grid Tracking:** Integrates context-aware tracking directly into the stream skipper. It features terminal-grade tab-stop snapping math (`4 - ((currentCol - 1) % 4)`) and captures exact token start boundaries to prevent location reporting drift across buffer refills.
+* **Deterministic Single-Byte Error Bounding:** When an invalid sequence is hit, the engine isolates the error to exactly one byte. It rolls back any subsequent over-read characters, yields a localized error state (`-2`), and safely shifts the cursor forward to resume stable tokenization without CPU pipeline stalls.
+
+## Empirical Benchmarks (v1 vs. Flex)
+
+Metalyzer features an automated, cache-isolated asynchronous tracking laboratory. Execution threads are pinned to un-shared physical hardware cores (`pthread_setaffinity_np`) with manual L1/L2/L3 cache line evictions between passes to capture true microarchitectural steady-state processing velocity.
+
+Tested against industry-standard Flex (`yyFlexLexer`) across 10 MB payloads:
+
+* **Sparse Layouts (Whitespace Dominated):** Reached up to **284.51 MB/s**, outperforming Flex by **+216%**. (Driven by Metalyzer's bare-metal inline pointer skipping).
+* **Dense Layouts (Procedural Syntax):** Achieved **118.81 MB/s**, an **+83.4%** velocity lead over Flex. (Driven by Metalyzer's uncompressed 2D transition matrix residing completely within the L1 Data Cache).
+* **Error Churn Stability:** Under aggressive lexical error payloads, Metalyzer restricted performance variance to a rock-solid **± 4.04 MB/s**, compared to Flex's highly turbulent ± 33.81 MB/s.
+
+*(Note: Metalyzer trades memory footprint for pure speed. It is intentionally optimized for DSLs where the 2D matrix fits inside the CPU's L1 cache. For massive languages like full C++, Flex's table-packing compression becomes necessary to prevent cache eviction).*
+
+* **[v0 Monolithic Baseline Performance Metrics](https://www.google.com/search?q=benchmarks/BENCHMARKS_V0.md)**
+* **[v1 Sliding Chunk Architecture Metrics](https://www.google.com/search?q=benchmarks/BENCHMARKS_V1.md)**
 
 ## Specification Format (`.mz`)
 
-Metalyzer consumes a standard 3-section specification file format (inspired by Lex/Flex) to allow seamless injection of custom C++ action code:
+Metalyzer consumes a standard 3-section specification file format to allow seamless injection of custom C++ action code:
 
 ```lex
 %{
@@ -81,15 +99,6 @@ int main() {
 }
 
 ```
-
-## Performance & Execution Strategy Profiles
-
-Metalyzer features an automated, cache-isolated asynchronous tracking laboratory that benchmarks execution performance directly against industry-standard Flex (`yyFlexLexer`). Tasks are pinned to un-shared physical hardware cores to eliminate execution noise.
-
-Detailed analysis records, microarchitectural diagnostics, and comparative data matrices are maintained for each architectural generation:
-
-* **[v0 Monolithic Baseline Performance Metrics](benchmarks/BENCHMARKS_V0.md):** Records performance under the historical baseline configuration utilizing a flat, pre-loaded monolithic payload buffer.
-* **[v1 Sliding Chunk Architecture Metrics](benchmarks/BENCHMARKS_V1.md):** Documents metrics for the optimized sliding chunk-swapping buffer, showcasing the elimination of per-character virtual stream calls.
 
 ## Build and Run
 
@@ -118,7 +127,13 @@ Compile your lexer specifications by passing them to the generator executable:
 
 ## Future Work
 
-With the foundational lexical engine complete, the suite is scheduled to expand into a complete language frontend:
+**Metalyzer v2.0 (Lexer Expansions):**
+
+* **Hybrid Table Compression:** Introduce an optional, packed-table compression mode for large grammars to prevent L1 data-cache eviction when states scale into the thousands.
+* **Conditional Active Whitespace Passing:** Add a compiler pass to automatically compile out the high-speed inline whitespace skipper if a user explicitly registers custom action rules for whitespace/indentation.
+* **Unicode & UTF-8 Support:** Expand the transition matrices beyond 7-bit ASCII boundaries.
+
+**Metalyzer v3.0 (Language Frontend Expansion):**
 
 * **Parser Generator:** Implementation of a `.my` specification parser to generate Abstract Syntax Trees (ASTs) using LALR/LR(1) lookahead tables.
 * **Semantic Analyzer:** AST validation passes for type-checking and logical constraint verification.
